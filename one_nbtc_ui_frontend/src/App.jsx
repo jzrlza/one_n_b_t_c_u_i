@@ -36,8 +36,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>🚀 one_nbtc_ui Frontend</h1>
-        <p>Built with React + Vite</p>
+        <h1>ONE NBTC</h1>
       </header>
 
       <main className="app-main">
