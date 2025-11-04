@@ -1,0 +1,7 @@
+Primary Features :
+
+- Login Page [2 Factor] [[HIGHEST PRIORITY!!]]
+- User Search and Table List Page
+   - Listing names, position, bereau
+- Add/Edit Users Page
+- Van attend listing [Low Priority for now]
