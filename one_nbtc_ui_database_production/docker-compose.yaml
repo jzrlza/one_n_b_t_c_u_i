@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: one_nbtc_ui_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: one_nbtc_ui_db
+      MYSQL_USER: nbtc_user
+      MYSQL_PASSWORD: nbtc_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - nbtc_network
+
+volumes:
+  mysql_data:
+
+networks:
+  nbtc_network:
+    driver: bridge

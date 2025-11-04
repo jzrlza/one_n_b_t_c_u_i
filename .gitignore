@@ -1,0 +1,7 @@
+.env
+/one_nbtc_ui_backend/.env
+/one_nbtc_ui_frontend/.env
+/one_nbtc_ui_database_production/.env
+*/node_modules/
+*/package-lock.json
+*/dist/
