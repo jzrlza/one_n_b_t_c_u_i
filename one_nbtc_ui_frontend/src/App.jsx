@@ -20,7 +20,7 @@ function App() {
     setLoading(true)
     try {
       const response = await axios.get('/api/users')
-      setUsers(response.data.data || [])
+      setUsers(response.data || [])
     } catch (error) {
       console.error('Error fetching users:', error)
       setUsers([])
