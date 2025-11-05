@@ -4,31 +4,35 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 
 const Home = ({ user, onLogout }) => {
-  const [backendHealth, setBackendHealth] = useState(null);
-  const [users, setUsers] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const checkBackendHealth = async () => {
-    try {
-      const response = await axios.get('/api/health');
-      setBackendHealth(response.data);
-    } catch (error) {
-      setBackendHealth({ status: 'ERROR', error: error.message });
-    }
-  };
-
-  const fetchUsers = async () => {
+  const fetchEmployees = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/users');
-      setUsers(response.data || []);
+      const response = await axios.get('/api/employees');
+      setEmployees(response.data || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
-      setUsers([]);
+      console.error('Error fetching employees:', error);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (employeeId) => {
+    console.log('Edit employee:', employeeId);
+  };
+
+  const handleDelete = (employeeId) => {
+    if (window.confirm('Are you sure you want to delete this employee?')) {
+      console.log('Delete employee:', employeeId);
+    }
+  };
+
+  const handleAddEmployee = () => {
+    console.log('Add new employee');
   };
 
   const handleLogout = () => {
@@ -37,7 +41,7 @@ const Home = ({ user, onLogout }) => {
   };
 
   useEffect(() => {
-    checkBackendHealth();
+    fetchEmployees();
   }, []);
 
   return (
@@ -45,42 +49,60 @@ const Home = ({ user, onLogout }) => {
       <Navbar user={user} onLogout={handleLogout} />
       
       <main className="app-main">
-        <section className="health-section">
-          <h2>Backend Health Status</h2>
-          {backendHealth ? (
-            <div className={`health-status ${backendHealth.status === 'OK' ? 'healthy' : 'error'}`}>
-              <strong>Status:</strong> {backendHealth.status}
-              <br />
-              <strong>Service:</strong> {backendHealth.service}
-            </div>
-          ) : (
-            <p>Checking backend health...</p>
-          )}
-          <button onClick={checkBackendHealth} className="refresh-btn">
-            Refresh Health
-          </button>
-        </section>
-
-        <section className="users-section">
-          <h2>Users Data</h2>
-          <button onClick={fetchUsers} disabled={loading} className="fetch-btn">
-            {loading ? 'Loading...' : 'Fetch Users'}
+        <section className="employees-section">
+          <div className="section-header">
+            <h2>Employees</h2>
+            <button onClick={handleAddEmployee} className="add-btn">
+              Add Employee
+            </button>
+          </div>
+          
+          <button onClick={fetchEmployees} disabled={loading} className="fetch-btn">
+            {loading ? 'Loading...' : 'Refresh Employees'}
           </button>
           
-          {users.length > 0 ? (
-            <div className="users-list">
-              <h3>Users ({users.length})</h3>
-              <div className="users-grid">
-                {users.map((user, index) => (
-                  <div key={index} className="user-card">
-                    <h4>User {index + 1}</h4>
-                    <pre>{JSON.stringify(user, null, 2)}</pre>
-                  </div>
-                ))}
-              </div>
+          {employees.length > 0 ? (
+            <div className="table-container">
+              <table className="employees-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Department</th>
+                    <th>Division</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((employee) => (
+                    <tr key={employee.id}>
+                      <td>{employee.id}</td>
+                      <td>{employee.emp_name}</td>
+                      <td>{employee.position_name}</td>
+                      <td>{employee.dept_name}</td>
+                      <td>{employee.div_name}</td>
+                      <td className="actions">
+                        <button 
+                          onClick={() => handleEdit(employee.id)}
+                          className="edit-btn"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(employee.id)}
+                          className="delete-btn"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <p>No users data available. Click "Fetch Users" to load data.</p>
+            <p>No employees data available.</p>
           )}
         </section>
       </main>
