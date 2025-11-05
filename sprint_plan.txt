@@ -9,5 +9,6 @@ Today
 Tomorrow
 - Employees Search and Table List Page
    - Listing names, position, bereau
+   - follow database structure
 - Add/Edit Employees Page
 - Van attend listing [Low Priority for now]
