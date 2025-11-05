@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
 
@@ -6,6 +7,7 @@ const Home = ({ user, onLogout }) => {
   const [backendHealth, setBackendHealth] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const checkBackendHealth = async () => {
     try {
@@ -29,13 +31,18 @@ const Home = ({ user, onLogout }) => {
     }
   };
 
+  const handleLogout = () => {
+    onLogout();
+    navigate('/login');
+  };
+
   useEffect(() => {
     checkBackendHealth();
   }, []);
 
   return (
     <div className="app">
-      <Navbar user={user} onLogout={onLogout} />
+      <Navbar user={user} onLogout={handleLogout} />
       
       <main className="app-main">
         <section className="health-section">
