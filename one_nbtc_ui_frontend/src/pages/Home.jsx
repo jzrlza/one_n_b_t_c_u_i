@@ -113,6 +113,28 @@ const Home = ({ user, onLogout }) => {
               {loading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
+
+          <div className="pagination">
+                <button 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="page-btn"
+                >
+                  Previous
+                </button>
+                
+                <span className="page-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                
+                <button 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="page-btn"
+                >
+                  Next
+                </button>
+              </div>
           
           {employees.length > 0 ? (
             <>
