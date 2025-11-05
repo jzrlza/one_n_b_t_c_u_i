@@ -7,9 +7,9 @@ Done
    - Listing names, position, bereau
    - follow database structure
 - Search Feature in Table
+- Add/Edit Employees Page
 
 Today
-- Add/Edit Employees Page
 
 Tomorrow
 - Van attend listing [Low Priority for now]

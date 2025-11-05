@@ -68,11 +68,82 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET employee by ID
-router.get('/:id', async (req, res) => {
+// GET positions for dropdown
+router.get('/positions', async (req, res) => {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute('SELECT * FROM employee WHERE id = ?', [req.params.id]);
+    const [rows] = await connection.execute('SELECT * FROM position ORDER BY position_name');
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET departments for dropdown
+router.get('/departments', async (req, res) => {
+  try {
+    const connection = await getConnection();
+    const [rows] = await connection.execute('SELECT * FROM dept ORDER BY dept_name');
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST create new employee
+router.post('/', async (req, res) => {
+  try {
+    const { emp_name, position_id, dept_id } = req.body;
+    const connection = await getConnection();
+    
+    const [result] = await connection.execute(
+      'INSERT INTO employee (emp_name, position_id, dept_id) VALUES (?, ?, ?)',
+      [emp_name, position_id, dept_id]
+    );
+    
+    await connection.end();
+    res.json({ success: true, id: result.insertId });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT update employee
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { emp_name, position_id, dept_id } = req.body;
+    const connection = await getConnection();
+    
+    await connection.execute(
+      'UPDATE employee SET emp_name = ?, position_id = ?, dept_id = ? WHERE id = ?',
+      [emp_name, position_id, dept_id, id]
+    );
+    
+    await connection.end();
+    res.json({ success: true });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET single employee for edit
+router.get('/single/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getConnection();
+    
+    const [rows] = await connection.execute(
+      'SELECT * FROM employee WHERE id = ?',
+      [id]
+    );
+    
     await connection.end();
     
     if (rows.length === 0) {
@@ -80,6 +151,24 @@ router.get('/:id', async (req, res) => {
     }
     
     res.json(rows[0]);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getConnection();
+    
+    await connection.execute(
+      'DELETE FROM employee WHERE id = ?',
+      [id]
+    );
+    
+    await connection.end();
+    res.json({ success: true });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });

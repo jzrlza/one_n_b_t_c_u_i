@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
+import Modal from '../components/Modal';
 
 const Home = ({ user, onLogout }) => {
   const [employees, setEmployees] = useState([]);
@@ -10,6 +11,7 @@ const Home = ({ user, onLogout }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalEmployees, setTotalEmployees] = useState(0);
+  const [modal, setModal] = useState({ isOpen: false, type: '', message: '', employeeId: null });
   const navigate = useNavigate();
 
   const fetchEmployees = async (page = 1, searchTerm = '') => {
@@ -32,9 +34,18 @@ const Home = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching employees:', error);
       setEmployees([]);
+      showModal('error', 'Failed to fetch employees');
     } finally {
       setLoading(false);
     }
+  };
+
+  const showModal = (type, message, employeeId = null) => {
+    setModal({ isOpen: true, type, message, employeeId });
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: '', message: '', employeeId: null });
   };
 
   const handleSearch = (e) => {
@@ -49,17 +60,28 @@ const Home = ({ user, onLogout }) => {
   };
 
   const handleEdit = (employeeId) => {
-    console.log('Edit employee:', employeeId);
+    navigate(`/employee/${employeeId}`);
   };
 
   const handleDelete = (employeeId) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
-      console.log('Delete employee:', employeeId);
+    showModal('confirm', 'Are you sure you want to delete this employee?', employeeId);
+  };
+
+  const confirmDelete = async () => {
+    if (!modal.employeeId) return;
+    
+    try {
+      await axios.delete(`/api/employees/${modal.employeeId}`);
+      fetchEmployees(currentPage, search);
+      showModal('success', 'Employee deleted successfully');
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      showModal('error', 'Failed to delete employee');
     }
   };
 
   const handleAddEmployee = () => {
-    console.log('Add new employee');
+    navigate('/employee');
   };
 
   const handleLogout = () => {
@@ -205,6 +227,31 @@ const Home = ({ user, onLogout }) => {
           )}
         </section>
       </main>
+
+      {/* Modal for messages */}
+      <Modal 
+        isOpen={modal.isOpen && ['success', 'error'].includes(modal.type)} 
+        onClose={closeModal}
+        title={modal.type === 'success' ? 'Success' : 'Error'}
+      >
+        <p>{modal.message}</p>
+        <div className="modal-actions">
+          <button onClick={closeModal} className="modal-btn primary">OK</button>
+        </div>
+      </Modal>
+
+      {/* Modal for confirmation */}
+      <Modal 
+        isOpen={modal.isOpen && modal.type === 'confirm'} 
+        onClose={closeModal}
+        title="Confirm Delete"
+      >
+        <p>{modal.message}</p>
+        <div className="modal-actions">
+          <button onClick={confirmDelete} className="modal-btn danger">Delete</button>
+          <button onClick={closeModal} className="modal-btn secondary">Cancel</button>
+        </div>
+      </Modal>
     </div>
   );
 };
