@@ -1,12 +1,13 @@
 Primary Features :
 
 - User Table in Database one type for admin, and one for general user [done]
+- Login Page [2 Factor] [done]
 
 Today
-- Login Page [2 Factor] [[HIGH PRIORITY!!]]
+
 
 Tomorrow
-- User Search and Table List Page
+- Employees Search and Table List Page
    - Listing names, position, bereau
-- Add/Edit Users Page
+- Add/Edit Employees Page
 - Van attend listing [Low Priority for now]
