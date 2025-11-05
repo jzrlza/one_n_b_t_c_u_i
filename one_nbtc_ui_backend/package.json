@@ -9,17 +9,21 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "mysql2": "^3.6.0",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
     "helmet": "^7.0.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "mysql2": "^3.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["backend", "api", "mysql"],
+  "keywords": [
+    "backend",
+    "api",
+    "mysql"
+  ],
   "author": "one_nbtc_ui",
   "license": "MIT"
 }
