@@ -486,3 +486,138 @@ body {
   width: 100%;
   margin-bottom: 1rem;
 }
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.search-form {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.search-btn, .clear-btn {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-btn {
+  background: #2196f3;
+  color: white;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.clear-btn {
+  background: #ff9800;
+  color: white;
+}
+
+.clear-btn:hover {
+  background: #f57c00;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.page-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  color: white;
+}
+
+.employees-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.employees-table th,
+.employees-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.employees-table th {
+  background: rgba(0, 0, 0, 0.3);
+  font-weight: bold;
+}
+
+/* Column widths */
+.employees-table th:nth-child(1),
+.employees-table td:nth-child(1) {
+  width: 5%; /* ID */
+}
+
+.employees-table th:nth-child(2),
+.employees-table td:nth-child(2) {
+  width: 25%; /* Name */
+}
+
+.employees-table th:nth-child(3),
+.employees-table td:nth-child(3) {
+  width: 20%; /* Position */
+}
+
+.employees-table th:nth-child(4),
+.employees-table td:nth-child(4) {
+  width: 20%; /* Department */
+}
+
+.employees-table th:nth-child(5),
+.employees-table td:nth-child(5) {
+  width: 20%; /* Division */
+}
+
+.employees-table th:nth-child(6),
+.employees-table td:nth-child(6) {
+  width: 10%; /* Actions */
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
