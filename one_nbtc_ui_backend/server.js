@@ -12,11 +12,13 @@ app.use(express.json());
 const indexRoutes = require('./routes/index');
 const usersRoutes = require('./routes/users');
 const employeesRoutes = require('./routes/employees');
+const authRoutes = require('./routes/auth'); // Add this line
 
 // Use routes
 app.use('/api', indexRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/employees', employeesRoutes);
+app.use('/api/auth', authRoutes); // Add this line
 
 // 404 handler
 app.use('*', (req, res) => {

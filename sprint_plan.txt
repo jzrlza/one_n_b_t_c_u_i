@@ -1,7 +1,11 @@
 Primary Features :
 
-- User Table in Database one type for admin, and one for general user [[HIGH PRIORITY!!]]
+- User Table in Database one type for admin, and one for general user [done]
+
+Today
 - Login Page [2 Factor] [[HIGH PRIORITY!!]]
+
+Tomorrow
 - User Search and Table List Page
    - Listing names, position, bereau
 - Add/Edit Users Page
