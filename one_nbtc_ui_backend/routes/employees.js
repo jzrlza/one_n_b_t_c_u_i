@@ -94,6 +94,18 @@ router.get('/departments', async (req, res) => {
   }
 });
 
+router.get('/divisions', async (req, res) => {
+  try {
+    const connection = await getConnection();
+    const [rows] = await connection.execute('SELECT * FROM division ORDER BY div_name');
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST create new employee
 router.post('/', async (req, res) => {
   try {

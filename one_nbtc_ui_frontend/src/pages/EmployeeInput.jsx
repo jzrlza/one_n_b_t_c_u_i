@@ -12,10 +12,13 @@ const EmployeeInput = ({ user, onLogout }) => {
   const [formData, setFormData] = useState({
     emp_name: '',
     position_id: '',
+    div_id: '',
     dept_id: ''
   });
   const [positions, setPositions] = useState([]);
+  const [divisions, setDivisions] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '' });
@@ -30,38 +33,68 @@ const EmployeeInput = ({ user, onLogout }) => {
 
   useEffect(() => {
     fetchDropdownData();
-    if (isEditMode) {
-      fetchEmployeeData();
-    } else {
-      setPageLoading(false);
-    }
   }, [id]);
+
+  // Filter departments when division changes
+  useEffect(() => {
+    if (formData.div_id) {
+      const filtered = departments.filter(dept => dept.div_id == formData.div_id);
+      setFilteredDepartments(filtered);
+      
+      // Clear department if current selection doesn't belong to selected division
+      if (formData.dept_id) {
+        const currentDept = departments.find(dept => dept.id == formData.dept_id);
+        if (!currentDept || currentDept.div_id != formData.div_id) {
+          setFormData(prev => ({ ...prev, dept_id: '' }));
+        }
+      }
+    } else {
+      setFilteredDepartments([]);
+      setFormData(prev => ({ ...prev, dept_id: '' }));
+    }
+  }, [formData.div_id, departments]);
 
   const fetchDropdownData = async () => {
     try {
-      const [posRes, deptRes] = await Promise.all([
+      const [posRes, divRes, deptRes] = await Promise.all([
         axios.get('/api/employees/positions'),
+        axios.get('/api/employees/divisions'),
         axios.get('/api/employees/departments')
       ]);
       setPositions(posRes.data);
+      setDivisions(divRes.data);
       setDepartments(deptRes.data);
+      
+      // After dropdowns are loaded, fetch employee data if in edit mode
+      if (isEditMode) {
+        await fetchEmployeeData(deptRes.data);
+      } else {
+        setPageLoading(false);
+      }
     } catch (error) {
       console.error('Error fetching dropdown data:', error);
       showModal('error', 'Failed to load dropdown data');
+      setPageLoading(false);
     }
   };
 
-  const fetchEmployeeData = async () => {
+  const fetchEmployeeData = async (deptData = departments) => {
     try {
       const response = await axios.get(`/api/employees/single/${id}`);
+      const employee = response.data;
+      
+      // Get division ID from department using the provided department data
+      const dept = deptData.find(d => d.id == employee.dept_id);
+      const divId = dept ? dept.div_id : '';
+      
       setFormData({
-        emp_name: response.data.emp_name || '',
-        position_id: response.data.position_id || '',
-        dept_id: response.data.dept_id || ''
+        emp_name: employee.emp_name || '',
+        position_id: employee.position_id || '',
+        div_id: divId,
+        dept_id: employee.dept_id || ''
       });
     } catch (error) {
       console.error('Error fetching employee:', error);
-      alert('Failed to load employee data');
       showModal('error', 'Failed to load employee data');
     } finally {
       setPageLoading(false);
@@ -70,14 +103,27 @@ const EmployeeInput = ({ user, onLogout }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate department selection
+    if (formData.div_id && !formData.dept_id) {
+      showModal('error', 'Please select a department for the chosen division');
+      return;
+    }
+    
     setLoading(true);
     
     try {
+      const submitData = {
+        emp_name: formData.emp_name,
+        position_id: formData.position_id,
+        dept_id: formData.dept_id
+      };
+      
       if (isEditMode) {
-        await axios.put(`/api/employees/${id}`, formData);
+        await axios.put(`/api/employees/${id}`, submitData);
         showModal('success', 'Employee updated successfully');
       } else {
-        await axios.post('/api/employees', formData);
+        await axios.post('/api/employees', submitData);
         showModal('success', 'Employee created successfully');
       }
     } catch (error) {
@@ -89,10 +135,21 @@ const EmployeeInput = ({ user, onLogout }) => {
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    
+    if (name === 'div_id') {
+      // When division changes, clear department
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        dept_id: ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleModalClose = () => {
@@ -149,20 +206,43 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
+              <label>Division:</label>
+              <select
+                name="div_id"
+                value={formData.div_id}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select Division</option>
+                {divisions.map(division => (
+                  <option key={division.id} value={division.id}>
+                    {division.div_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
               <label>Department:</label>
               <select
                 name="dept_id"
                 value={formData.dept_id}
                 onChange={handleChange}
                 required
+                disabled={!formData.div_id}
               >
-                <option value="">Select Department</option>
-                {departments.map(dept => (
+                <option value="">
+                  {formData.div_id ? 'Select Department' : 'Select division first'}
+                </option>
+                {filteredDepartments.map(dept => (
                   <option key={dept.id} value={dept.id}>
                     {dept.dept_name}
                   </option>
                 ))}
               </select>
+              {!formData.div_id && (
+                <small className="form-hint">Please select a division first</small>
+              )}
             </div>
 
             <div className="form-actions">
