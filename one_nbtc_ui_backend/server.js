@@ -13,12 +13,14 @@ const indexRoutes = require('./routes/index');
 const usersRoutes = require('./routes/users');
 const employeesRoutes = require('./routes/employees');
 const authRoutes = require('./routes/auth'); // Add this line
+const registersRoutes = require('./routes/registers');
 
 // Use routes
 app.use('/api', indexRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/auth', authRoutes); // Add this line
+app.use('/api/registers', registersRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

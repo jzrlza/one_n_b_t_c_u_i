@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Home from './pages/Home';
 import EmployeeInput from './pages/EmployeeInput';
+import AttendRegisterList from './pages/AttendRegisterList';
 import './App.css';
 
 function App() {
@@ -75,6 +76,15 @@ function App() {
             } 
           />
           
+          <Route 
+            path="/attendance" 
+            element={
+              <ProtectedRoute>
+                <AttendRegisterList user={user} onLogout={handleLogout} />
+              </ProtectedRoute>
+            } 
+          />
+
           {/* Catch all route - redirect to home if logged in, else login */}
           <Route 
             path="*" 
