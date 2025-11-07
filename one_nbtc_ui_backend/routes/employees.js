@@ -8,11 +8,11 @@ router.get('/', async (req, res) => {
     const { search, page = 1, limit = 20 } = req.query;
     const connection = await getConnection();
     
-    let whereClause = '\n';
+    let whereClause = 'WHERE e.is_deleted = 0 \n';
     let queryParams = [];
     
     if (search) {
-      whereClause = `WHERE e.emp_name LIKE ?`;
+      whereClause += `AND e.emp_name LIKE ?`;
       queryParams.push(`%${search}%`);
     }
     
@@ -152,7 +152,7 @@ router.get('/single/:id', async (req, res) => {
     const connection = await getConnection();
     
     const [rows] = await connection.execute(
-      'SELECT * FROM employee WHERE id = ?',
+      'SELECT * FROM employee WHERE id = ? AND is_deleted = 0',
       [id]
     );
     
@@ -170,6 +170,24 @@ router.get('/single/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await getConnection();
+    
+    await connection.execute(
+      'UPDATE employee SET is_deleted = 1 WHERE id = ?',
+      [id]
+    );
+    
+    await connection.end();
+    res.json({ success: true });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/:id/force', async (req, res) => {
   try {
     const { id } = req.params;
     const connection = await getConnection();
