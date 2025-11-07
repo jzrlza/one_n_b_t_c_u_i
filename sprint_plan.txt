@@ -9,9 +9,9 @@ Done
 - Search Feature in Table
 - Add/Edit Employees Page
 - Division choose before Dept in Add/Edit
+- Delete flags instead of deletion for recording (in table)
 
 Today
-- Delete flags instead of deletion for recording (in table)
 
 Tomorrow
 - Tabs between Employee and Van Attend lists
