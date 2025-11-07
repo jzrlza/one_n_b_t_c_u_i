@@ -14,7 +14,9 @@ Today
 - Delete flags instead of deletion for recording (in table)
 
 Tomorrow
-- Van attend listing [Low Priority for now]
+- Tabs between Employee and Van Attend lists
+- Van attend listing
+- Van attend Add/Edit
 - import van attend via excel in bulk
 - Report van attend (as excel) [based on excel 2nd file and then 2nd sheet onwards (5 reports types)]
 
