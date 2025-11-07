@@ -10,6 +10,10 @@ Done
 - Add/Edit Employees Page
 
 Today
+- Division choose before Dept in Add/Edit
+- Delete flags instead of deletion for recording (in table)
 
 Tomorrow
 - Van attend listing [Low Priority for now]
+- import van attend via excel in bulk
+- Report van attend [based on excel 2nd file and then 2nd sheet onwards]
