@@ -17,7 +17,7 @@ Done
 Today
 
 Tomorrow
-- import van attend via excel in bulk
+- import employee data via excel in bulk
 - Report van attend (as excel) [based on excel 2nd file and then 2nd sheet onwards (5 reports types)]
 
 due new year
