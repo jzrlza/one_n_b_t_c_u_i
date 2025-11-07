@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import EmployeeInput from './pages/EmployeeInput';
 import AttendRegisterList from './pages/AttendRegisterList';
+import AttendeeInput from './pages/AttendeeInput';
 import './App.css';
 
 function App() {
@@ -81,6 +82,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <AttendRegisterList user={user} onLogout={handleLogout} />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/attendance/edit/:id?" 
+            element={
+              <ProtectedRoute>
+                <AttendeeInput user={user} onLogout={handleLogout} />
               </ProtectedRoute>
             } 
           />

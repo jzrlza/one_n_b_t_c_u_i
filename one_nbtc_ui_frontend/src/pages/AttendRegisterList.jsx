@@ -51,8 +51,11 @@ const AttendRegisterList = ({ user, onLogout }) => {
   };
 
   const handleEdit = (registerId) => {
-    console.log('Edit register:', registerId);
-    // Will implement edit page later
+    navigate(`/attendance/edit/${registerId}`);
+  };
+
+  const handleAddRegister = () => {
+    navigate('/attendance/edit');
   };
 
   const handleDelete = (registerId) => {
@@ -70,11 +73,6 @@ const AttendRegisterList = ({ user, onLogout }) => {
       console.error('Error deleting register:', error);
       showModal('error', 'Failed to delete registration');
     }
-  };
-
-  const handleAddRegister = () => {
-    console.log('Add new registration');
-    // Will implement add page later
   };
 
   const handleLogout = () => {
