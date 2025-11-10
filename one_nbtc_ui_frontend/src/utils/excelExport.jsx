@@ -17,26 +17,31 @@ export const exportToExcel = (registers, unregisteredEmployees) => {
   // Sheet 1: Transportation info
   const sheet1Data = prepareTransportationSheet(registers);
   const worksheet1 = utils.aoa_to_sheet(sheet1Data);
+  autoFitColumns(worksheet1, sheet1Data);
   utils.book_append_sheet(workbook, worksheet1, sheetNames.sheet1);
 
   // Sheet 2: Food preferences
   const sheet2Data = prepareFoodSheet(registers);
   const worksheet2 = utils.aoa_to_sheet(sheet2Data);
+  autoFitColumns(worksheet2, sheet2Data);
   utils.book_append_sheet(workbook, worksheet2, sheetNames.sheet2);
 
   // Sheet 3: Attending employees
   const sheet3Data = prepareAttendingSheet(registers);
   const worksheet3 = utils.aoa_to_sheet(sheet3Data);
+  autoFitColumns(worksheet3, sheet3Data);
   utils.book_append_sheet(workbook, worksheet3, sheetNames.sheet3);
 
   // Sheet 4: Not attending employees
   const sheet4Data = prepareNotAttendingSheet(registers);
   const worksheet4 = utils.aoa_to_sheet(sheet4Data);
+  autoFitColumns(worksheet4, sheet4Data);
   utils.book_append_sheet(workbook, worksheet4, sheetNames.sheet4);
 
   // Sheet 5: Unregistered employees
   const sheet5Data = prepareUnregisteredSheet(unregisteredEmployees);
   const worksheet5 = utils.aoa_to_sheet(sheet5Data);
+  autoFitColumns(worksheet5, sheet5Data);
   utils.book_append_sheet(workbook, worksheet5, sheetNames.sheet5);
   
   // Generate Excel file
@@ -127,4 +132,20 @@ const prepareUnregisteredSheet = (unregisteredEmployees) => {
 
 const getEnumDisplay = (type, value) => {
   return registerEnums[type]?.[value] || value || '-';
+};
+
+// Add this function to excelExport.js
+const autoFitColumns = (worksheet, data) => {
+  const colWidths = [];
+  
+  data.forEach(row => {
+    row.forEach((cell, colIndex) => {
+      const cellLength = cell ? cell.toString().length : 0;
+      colWidths[colIndex] = Math.max(colWidths[colIndex] || 0, cellLength);
+    });
+  });
+  
+  worksheet['!cols'] = colWidths.map(width => ({ 
+    width: Math.min(Math.max(width + 2, 10), 50) // Min 10, Max 50, +2 for padding
+  }));
 };
