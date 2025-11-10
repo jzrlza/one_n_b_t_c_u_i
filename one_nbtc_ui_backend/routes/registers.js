@@ -150,4 +150,61 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET export data for Excel (raw data only)
+router.get('/export-data', async (req, res) => {
+  try {
+    const connection = await getConnection();
+    
+    // Get all register data with employee details
+    const [registers] = await connection.execute(`
+      SELECT 
+        r.*,
+        e.emp_name,
+        p.position_name,
+        d.dept_name,
+        division_obj.div_name
+      FROM register r
+      LEFT JOIN employee e ON r.emp_id = e.id
+      LEFT JOIN position p ON e.position_id = p.id
+      LEFT JOIN dept d ON e.dept_id = d.id
+      LEFT JOIN division division_obj ON d.div_id = division_obj.id
+      ORDER BY e.id
+    `);
+    
+    // Get all employees to find unregistered ones
+    const [allEmployees] = await connection.execute(`
+      SELECT 
+        e.id,
+        e.emp_name,
+        p.position_name,
+        d.dept_name,
+        division_obj.div_name
+      FROM employee e
+      LEFT JOIN position p ON e.position_id = p.id
+      LEFT JOIN dept d ON e.dept_id = d.id
+      LEFT JOIN division division_obj ON d.div_id = division_obj.id
+      WHERE e.is_deleted = 0
+      ORDER BY e.id
+    `);
+    
+    await connection.end();
+    
+    // Get registered employee IDs
+    const registeredEmpIds = new Set(registers.map(r => r.emp_id));
+    
+    // Find unregistered employees
+    const unregisteredEmployees = allEmployees.filter(emp => !registeredEmpIds.has(emp.id));
+    
+    res.json({
+      success: true,
+      registers: registers,
+      unregisteredEmployees: unregisteredEmployees
+    });
+    
+  } catch (error) {
+    console.log('Export error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

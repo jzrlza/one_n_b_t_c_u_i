@@ -5,10 +5,12 @@ import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
 import { getEnumValue } from '../utils/enum_config';
 import { formatDateTime } from '../utils/datetime_display_config';
+import { exportToExcel } from '../utils/excelExport';
 
 const AttendRegisterList = ({ user, onLogout }) => {
   const [registers, setRegisters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRegisters, setTotalRegisters] = useState(0);
@@ -80,6 +82,25 @@ const AttendRegisterList = ({ user, onLogout }) => {
     navigate('/login');
   };
 
+  const handleExportExcel = async () => {
+    setExportLoading(true);
+    try {
+      const response = await axios.get('/api/registers/export-data');
+      
+      if (response.data.success) {
+        exportToExcel(response.data.registers, response.data.unregisteredEmployees);
+        showModal('success', 'Excel file exported successfully!');
+      } else {
+        showModal('error', 'Failed to export data: ' + response.data.error);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      showModal('error', 'Failed to export Excel file: ' + error.message);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRegisters(1);
   }, []);
@@ -95,6 +116,13 @@ const AttendRegisterList = ({ user, onLogout }) => {
             <button onClick={handleAddRegister} className="add-btn">
               Add Registration
             </button>
+            <button 
+                onClick={handleExportExcel} 
+                disabled={exportLoading || totalRegisters === 0}
+                className="export-btn"
+              >
+                {exportLoading ? 'Exporting...' : 'Export Excel'}
+              </button>
           </div>
           
           <button onClick={() => fetchRegisters(currentPage)} disabled={loading} className="refresh-btn">
