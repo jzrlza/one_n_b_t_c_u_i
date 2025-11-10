@@ -7,11 +7,11 @@ export const exportToExcel = (registers, unregisteredEmployees) => {
   
   // Sheet names (customizable)
   const sheetNames = {
-    sheet1: 'ข้อมูลการเดินทาง',
-    sheet2: 'ข้อมูลอาหาร',
-    sheet3: 'ผู้เข้าร่วมงาน',
-    sheet4: 'ผู้ไม่เข้าร่วมงาน', 
-    sheet5: 'ผู้ยังไม่ได้ลงทะเบียน'
+    sheet1: '1รายงานรถตู้',
+    sheet2: '2รายงานอาหาร',
+    sheet3: '3รายงานคนเข้าร่วมทั้งหมด',
+    sheet4: '4รายงานคนไม่เข้าร่วม', 
+    sheet5: '5รายงานคนที่ยังไม่ลงทะเบียน'
   };
 
   // Sheet 1: Transportation info
@@ -56,7 +56,7 @@ export const exportToExcel = (registers, unregisteredEmployees) => {
 
 // Helper functions using frontend enum config
 const prepareTransportationSheet = (registers) => {
-  const headers = ['ลำดับ', 'ชื่อ-นามสกุล', 'หน่วยงาน', 'เบอร์โทรศัพท์', 'บริการรถ', 'รอบรถ'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'สังกัดย่อ E', 'เบอร์โทร ข้อ 5', 'เดินทาง (ข้อ 7 คือเอาคำตอบ ข้อ 1-3)', 'ช่วงเวลาเดินทาง (ข้อ 8 คือเอาคำตอบ ข้อ 1-3)'];
   
   const rows = registers.map((reg, index) => [
     index + 1,
@@ -71,7 +71,7 @@ const prepareTransportationSheet = (registers) => {
 };
 
 const prepareFoodSheet = (registers) => {
-  const headers = ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'หน่วยงาน', 'ประเภทอาหาร'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E', 'อาหารที่รับประทาน (ข้อ 8 คือเอาคำตอบ ข้อ 1-2)'];
   
   const rows = registers.map((reg, index) => [
     index + 1,
@@ -85,7 +85,7 @@ const prepareFoodSheet = (registers) => {
 };
 
 const prepareAttendingSheet = (registers) => {
-  const headers = ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'หน่วยงาน'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E'];
   
   const attending = registers.filter(reg => reg.is_attend == 1);
   const rows = attending.map((reg, index) => [
@@ -99,7 +99,7 @@ const prepareAttendingSheet = (registers) => {
 };
 
 const prepareNotAttendingSheet = (registers) => {
-  const headers = ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'หน่วยงาน'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E'];
   
   const notAttending = registers.filter(reg => reg.is_attend != 1);
   const rows = notAttending.map((reg, index) => [
@@ -113,7 +113,7 @@ const prepareNotAttendingSheet = (registers) => {
 };
 
 const prepareUnregisteredSheet = (unregisteredEmployees) => {
-  const headers = ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'หน่วยงาน'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E'];
   
   const rows = unregisteredEmployees.map((emp, index) => [
     index + 1,
