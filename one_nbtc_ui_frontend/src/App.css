@@ -870,3 +870,121 @@ input:focus, select:focus, textarea:focus {
     background: #444;
   }
 }
+
+
+/**import modals**/
+
+/* Scroll boxes */
+.scroll-box {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+/* Text colors */
+.success-text {
+  color: #4caf50;
+}
+
+.error-text {
+  color: #f44336;
+}
+
+.info-text {
+  color: #2196f3;
+}
+
+/* Success list */
+.import-success {
+  margin-bottom: 1rem;
+}
+
+.success-list {
+  background: #e8f5e8;
+  border: 1px solid #c8e6c9;
+}
+
+.success-item {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #c8e6c9;
+  font-size: 0.9rem;
+}
+
+.success-item:last-child {
+  border-bottom: none;
+}
+
+.more-items {
+  padding: 0.5rem 0;
+  font-style: italic;
+  color: #666;
+  text-align: center;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .scroll-box {
+    border-color: #555;
+  }
+  
+  .success-list {
+    background: #1a3a1a;
+    border-color: #2d5a2d;
+  }
+  
+  .success-item {
+    border-color: #2d5a2d;
+  }
+  
+  .more-items {
+    color: #aaa;
+  }
+}
+
+/* Confirm Import Styles */
+.confirm-import {
+  text-align: center;
+}
+
+.import-options {
+  display: flex;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.option {
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.option h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.option p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Dark mode support for confirm modal */
+@media (prefers-color-scheme: dark) {
+  .option {
+    border-color: #555;
+    background: #333;
+  }
+  
+  .option h4 {
+    color: white;
+  }
+  
+  .option p {
+    color: #aaa;
+  }
+}

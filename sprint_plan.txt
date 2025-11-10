@@ -13,12 +13,12 @@ Done
 - Tabs between Employee and Van Attend lists
 - Van attend listing
 - Van attend Add/Edit
+- import employee data via excel in bulk
 
 Today
-- import employee data via excel in bulk
-- Report van attend (as excel) [based on excel 2nd file and then 2nd sheet onwards (5 reports types)]
 
 Tomorrow
+- Report van attend (as excel) [based on excel 2nd file and then 2nd sheet onwards (5 reports types)]
 
 
 due new year

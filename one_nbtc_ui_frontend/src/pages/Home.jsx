@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
+import { parseExcelToArray } from '../utils/excelParser';
 
 const Home = ({ user, onLogout }) => {
   const [employees, setEmployees] = useState([]);
@@ -12,7 +13,17 @@ const Home = ({ user, onLogout }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '', employeeId: null });
+  const [importModal, setImportModal] = useState({ isOpen: false, results: null, mode: 'test' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, excelData: null });
   const navigate = useNavigate();
+
+  // Add useRef at the top with other useState
+  const fileInputRef = useRef();
+
+  // Add the handleImportClick function
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const fetchEmployees = async (page = 1, searchTerm = '') => {
     setLoading(true);
@@ -46,6 +57,10 @@ const Home = ({ user, onLogout }) => {
 
   const closeModal = () => {
     setModal({ isOpen: false, type: '', message: '', employeeId: null });
+  };
+
+  const closeImportModal = () => {
+    setImportModal({ isOpen: false, results: null, mode: 'test' });
   };
 
   const handleSearch = (e) => {
@@ -89,6 +104,84 @@ const Home = ({ user, onLogout }) => {
     navigate('/login');
   };
 
+  const handleImportExcel = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      showModal('error', 'Please select an Excel file (.xlsx or .xls)');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      console.log('Frontend: Starting Excel import...');
+      
+      // Parse Excel to array
+      const excelData = await parseExcelToArray(file);
+      
+      // Show confirmation modal instead of alert
+      setConfirmModal({
+        isOpen: true,
+        excelData: excelData
+      });
+      
+    } catch (error) {
+      console.error('Frontend: Import error:', error);
+      showModal('error', 'Failed to process Excel file: ' + error.message);
+      setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+    // Add function to handle import confirmation
+  const handleImportConfirm = async (shouldImport) => {
+    setConfirmModal({ isOpen: false, excelData: null });
+    
+    if (!confirmModal.excelData) return;
+    
+    setLoading(true);
+    
+    try {
+      let response;
+      if (shouldImport) {
+        console.log('Frontend: Starting REAL import...');
+        response = await axios.post('/api/employees/import', { excelData: confirmModal.excelData });
+      } else {
+        console.log('Frontend: Starting TEST import...');
+        response = await axios.post('/api/employees/test-import', { excelData: confirmModal.excelData });
+      }
+      
+      if (response.data.success) {
+        setImportModal({
+          isOpen: true,
+          results: response.data,
+          mode: shouldImport ? 'import' : 'test'
+        });
+        
+        // Refresh employee list if it was a real import
+        if (shouldImport && response.data.savedCount > 0) {
+          fetchEmployees(currentPage, search);
+        }
+        
+        console.log('Frontend: Operation completed successfully');
+      } else {
+        showModal('error', `Operation failed: ${response.data.error}`);
+      }
+    } catch (error) {
+      console.error('Frontend: Import error:', error);
+      showModal('error', 'Failed to process Excel file: ' + error.message);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   useEffect(() => {
     fetchEmployees(1);
   }, []);
@@ -96,6 +189,15 @@ const Home = ({ user, onLogout }) => {
   return (
     <div className="app">
       <Navbar user={user} onLogout={handleLogout} />
+
+      {/* Hidden file input */}
+    <input
+      type="file"
+      ref={fileInputRef}
+      onChange={handleImportExcel}
+      accept=".xlsx,.xls"
+      style={{ display: 'none' }}
+    />
       
       <main className="app-main">
         <section className="employees-section">
@@ -103,6 +205,9 @@ const Home = ({ user, onLogout }) => {
             <h2>Employees ({totalEmployees})</h2>
             <button onClick={handleAddEmployee} className="add-btn">
               Add Employee
+            </button>
+            <button onClick={handleImportClick} disabled={loading} className="import-btn">
+              {loading ? 'Processing...' : 'Import Excel'}
             </button>
           </div>
           
@@ -251,6 +356,118 @@ const Home = ({ user, onLogout }) => {
           <button onClick={confirmDelete} className="modal-btn danger">Delete</button>
           <button onClick={closeModal} className="modal-btn secondary">Cancel</button>
         </div>
+      </Modal>
+
+      {/* Confirm Import Modal */}
+      <Modal 
+        isOpen={confirmModal.isOpen} 
+        onClose={() => setConfirmModal({ isOpen: false, excelData: null })}
+        title="Import Confirmation"
+      >
+        <div className="confirm-import">
+          <p><strong>Do you want to IMPORT data to database?</strong></p>
+          <div className="import-options">
+            <div className="option">
+              <h4>✅ Import to Database</h4>
+              <p>Save employees to database (cannot be undone)</p>
+            </div>
+            <div className="option">
+              <h4>🔍 Test Only</h4>
+              <p>Validate data and show results without saving</p>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button 
+              onClick={() => handleImportConfirm(true)} 
+              className="modal-btn danger"
+            >
+              Import to Database
+            </button>
+            <button 
+              onClick={() => handleImportConfirm(false)} 
+              className="modal-btn secondary"
+            >
+              Test Only
+            </button>
+            <button 
+              onClick={() => setConfirmModal({ isOpen: false, excelData: null })} 
+              className="modal-btn primary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/*import modal*/}
+      <Modal 
+        isOpen={importModal.isOpen} 
+        onClose={closeImportModal}
+        title={importModal.mode === 'import' ? 'Excel Import Results' : 'Excel Test Results'}
+      >
+        {importModal.results && (
+          <div className="import-results">
+            <div className="import-summary">
+              <p><strong>Total Rows:</strong> {importModal.results.totalRows}</p>
+              <p className={importModal.mode === 'import' ? 'success-text' : 'info-text'}>
+                <strong>{importModal.mode === 'import' ? 'Successfully Saved:' : 'Valid Rows:'}</strong> {importModal.mode === 'import' ? importModal.results.savedCount : importModal.results.validRows}
+              </p>
+              <p className="error-text">
+                <strong>Errors:</strong> {importModal.mode === 'import' ? importModal.results.errorCount : importModal.results.errorRows}
+              </p>
+            </div>
+            
+            {importModal.results.errors && importModal.results.errors.length > 0 && (
+              <div className="import-errors">
+                <h4>Errors ({importModal.results.errors.length}):</h4>
+                <div className="error-list scroll-box">
+                  {importModal.results.errors.map((error, index) => (
+                    <div key={index} className="error-item">
+                      {error}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {importModal.mode === 'import' && importModal.results.saved && importModal.results.saved.length > 0 && (
+              <div className="import-success">
+                <h4>Successfully Imported ({importModal.results.saved.length}):</h4>
+                <div className="success-list scroll-box">
+                  {importModal.results.saved.slice(0, 10).map((item, index) => (
+                    <div key={index} className="success-item">
+                      <strong>Row {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
+                    </div>
+                  ))}
+                  {importModal.results.saved.length > 10 && (
+                    <div className="more-items">
+                      ... and {importModal.results.saved.length - 10} more employees
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {importModal.mode === 'test' && importModal.results.data && importModal.results.data.length > 0 && (
+              <div className="import-preview">
+                <h4>Preview (First 5 rows):</h4>
+                <div className="preview-table scroll-box">
+                  {importModal.results.data.slice(0, 5).map((item, index) => (
+                    <div key={index} className="preview-item">
+                      <strong>Row {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="modal-actions">
+              <button onClick={closeImportModal} className="modal-btn primary">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
