@@ -245,6 +245,8 @@ const EmployeeInput = ({ user, onLogout }) => {
               )}
             </div>
 
+            <br/>
+
             <div className="form-actions">
               <button type="submit" disabled={loading} className="submit-btn">
                 {loading ? 'Saving...' : (isEditMode ? 'Update Employee' : 'Add Employee')}
