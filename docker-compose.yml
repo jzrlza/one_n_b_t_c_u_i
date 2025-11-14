@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  database:
+    image: mysql:8.0
+    container_name: one_nbtc_ui_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./one_nbtc_ui_database_production/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - one-nbtc-network
+
+  backend:
+    build: ./one_nbtc_ui_backend
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
+    depends_on:
+      - database
+    networks:
+      - one-nbtc-network
+
+  frontend:
+    build: ./one_nbtc_ui_frontend
+    ports:
+      - "3000:4173"
+    environment:
+      VITE_API_URL: /api
+    depends_on:
+      - backend
+    networks:
+      - one-nbtc-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - one-nbtc-network
+
+volumes:
+  mysql_data:
+
+networks:
+  one-nbtc-network:
+    driver: bridge
