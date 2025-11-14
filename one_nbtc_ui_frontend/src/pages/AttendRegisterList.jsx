@@ -113,6 +113,9 @@ const AttendRegisterList = ({ user, onLogout }) => {
         <section className="registers-section">
           <div className="section-header">
             <h2>Attendance Registrations ({totalRegisters})</h2>
+            <button onClick={() => fetchRegisters(currentPage)} disabled={loading} className="refresh-btn">
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
             <button onClick={handleAddRegister} className="add-btn">
               Add Registration
             </button>
@@ -125,9 +128,29 @@ const AttendRegisterList = ({ user, onLogout }) => {
               </button>
           </div>
           
-          <button onClick={() => fetchRegisters(currentPage)} disabled={loading} className="refresh-btn">
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
+          
+
+          <div className="pagination">
+                <button 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="page-btn"
+                >
+                  Previous
+                </button>
+                
+                <span className="page-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                
+                <button 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="page-btn"
+                >
+                  Next
+                </button>
+              </div>
           
           {registers.length > 0 ? (
             <>
