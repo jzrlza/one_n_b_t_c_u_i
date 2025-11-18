@@ -15,11 +15,11 @@ Done
 - Van attend Add/Edit
 - import employee data via excel in bulk
 - Report van attend (as excel) [based on excel 2nd file and then 2nd sheet onwards (5 reports types)]
+- use 0 for ไม่ประสงค์เข้าร่วม
 
 Today
 
 Tomorrow
-- use 0 for ไม่ประสงค์เข้าร่วม
 - Van Service: if 0 or 1, show Van Round, else hide and leave value blank "-"
 - Thai Language
 - make inactive flag in case of annual database clear for attendance registrations
