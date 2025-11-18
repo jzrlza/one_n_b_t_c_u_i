@@ -19,8 +19,15 @@ const AttendeeInput = ({ user, onLogout }) => {
     van_round_id: '1',
     take_food: '1'
   });
-  const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // New state for hierarchical selection
+  const [divisions, setDivisions] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedDivision, setSelectedDivision] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '' });
@@ -34,12 +41,50 @@ const AttendeeInput = ({ user, onLogout }) => {
   };
 
   useEffect(() => {
+    fetchDivisions();
     if (isEditMode) {
       fetchRegisterData();
     } else {
       setPageLoading(false);
     }
   }, [id]);
+
+  // Fetch divisions on component mount
+  const fetchDivisions = async () => {
+    try {
+      const response = await axios.get('/api/registers/divisions');
+      setDivisions(response.data);
+    } catch (error) {
+      console.error('Error fetching divisions:', error);
+      showModal('error', 'Failed to load divisions');
+    }
+  };
+
+  // Fetch departments based on selected division
+  const fetchDepartments = async (divId) => {
+    try {
+      const response = await axios.get(`/api/registers/departments?div_id=${divId}`);
+      setDepartments(response.data);
+      setSelectedDepartment('');
+      setEmployees([]);
+      setSelectedEmployee('');
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      showModal('error', 'Failed to load departments');
+    }
+  };
+
+  // Fetch employees based on selected department
+  const fetchEmployees = async (deptId) => {
+    try {
+      const response = await axios.get(`/api/registers/employees?dept_id=${deptId}`);
+      setEmployees(response.data);
+      setSelectedEmployee('');
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      showModal('error', 'Failed to load employees');
+    }
+  };
 
   const fetchRegisterData = async () => {
     try {
@@ -55,6 +100,26 @@ const AttendeeInput = ({ user, onLogout }) => {
         van_round_id: register.van_round_id?.toString() || '1',
         take_food: register.take_food?.toString() || '1'
       });
+
+      // If editing, we need to fetch the employee's division and department
+      if (register.emp_id) {
+        try {
+          const employeeInfo = await axios.get(`/api/registers/employee-info/${register.emp_id}`);
+          const { division_id, department_id } = employeeInfo.data;
+          
+          setSelectedDivision(division_id?.toString() || '');
+          if (division_id) {
+            await fetchDepartments(division_id);
+            setSelectedDepartment(department_id?.toString() || '');
+            if (department_id) {
+              await fetchEmployees(department_id);
+            }
+          }
+          setSelectedEmployee(register.emp_id.toString());
+        } catch (error) {
+          console.error('Error fetching employee info:', error);
+        }
+      }
     } catch (error) {
       console.error('Error fetching register:', error);
       showModal('error', 'Failed to load registration data');
@@ -63,45 +128,66 @@ const AttendeeInput = ({ user, onLogout }) => {
     }
   };
 
-  const searchEmployees = async (searchTerm) => {
-    if (!searchTerm) {
-      setEmployeeSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
+  const handleDivisionChange = (e) => {
+    const divisionId = e.target.value;
+    setSelectedDivision(divisionId);
+    setSelectedDepartment('');
+    setSelectedEmployee('');
+    setEmployees([]);
     
-    try {
-      const response = await axios.get(`/api/registers/employees/search?search=${encodeURIComponent(searchTerm)}`);
-      setEmployeeSuggestions(response.data);
-      setShowSuggestions(true);
-    } catch (error) {
-      console.error('Error searching employees:', error);
+    if (divisionId) {
+      fetchDepartments(divisionId);
+    } else {
+      setDepartments([]);
     }
-  };
 
-  const handleEmployeeSearch = (e) => {
-    const value = e.target.value;
+    // Clear employee selection
     setFormData(prev => ({
       ...prev,
-      emp_name: value,
-      emp_id: '' // Clear emp_id when user types new name
+      emp_name: '',
+      emp_id: ''
     }));
-    
-    // Debounce search
-    clearTimeout(handleEmployeeSearch.timeout);
-    handleEmployeeSearch.timeout = setTimeout(() => {
-      searchEmployees(value);
-    }, 300);
   };
 
-  const selectEmployee = (employee) => {
+  const handleDepartmentChange = (e) => {
+    const departmentId = e.target.value;
+    setSelectedDepartment(departmentId);
+    setSelectedEmployee('');
+    
+    if (departmentId) {
+      fetchEmployees(departmentId);
+    } else {
+      setEmployees([]);
+    }
+
+    // Clear employee selection
     setFormData(prev => ({
       ...prev,
-      emp_name: employee.emp_name,
-      emp_id: employee.id
+      emp_name: '',
+      emp_id: ''
     }));
-    setShowSuggestions(false);
-    setEmployeeSuggestions([]);
+  };
+
+  const handleEmployeeChange = (e) => {
+    const employeeId = e.target.value;
+    setSelectedEmployee(employeeId);
+    
+    if (employeeId) {
+      const employee = employees.find(emp => emp.id.toString() === employeeId);
+      if (employee) {
+        setFormData(prev => ({
+          ...prev,
+          emp_name: employee.emp_name,
+          emp_id: employee.id.toString()
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        emp_name: '',
+        emp_id: ''
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -109,7 +195,7 @@ const AttendeeInput = ({ user, onLogout }) => {
     
     // Validate employee selection
     if (!formData.emp_id) {
-      showModal('error', 'Please select an employee from the suggestions');
+      showModal('error', 'Please select an employee');
       return;
     }
     
@@ -180,35 +266,59 @@ const AttendeeInput = ({ user, onLogout }) => {
           <h2>{isEditMode ? 'Edit Registration' : 'Add New Registration'}</h2>
           
           <form onSubmit={handleSubmit} className="employee-form">
+            {/* Division Selection */}
             <div className="form-group">
-              <label>Employee Name:</label>
-              <div className="search-container">
-                <input
-                  type="text"
-                  name="emp_name"
-                  value={formData.emp_name}
-                  onChange={handleEmployeeSearch}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  onFocus={() => formData.emp_name && setShowSuggestions(true)}
-                  placeholder="Type to search employees..."
-                  required
-                />
-                {showSuggestions && employeeSuggestions.length > 0 && (
-                  <div className="suggestions-dropdown">
-                    {employeeSuggestions.map(employee => (
-                      <div
-                        key={employee.id}
-                        className="suggestion-item"
-                        onClick={() => selectEmployee(employee)}
-                      >
-                        {employee.emp_name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <label>Division:</label>
+              <select
+                value={selectedDivision}
+                onChange={handleDivisionChange}
+                required
+              >
+                <option value="">Select Division</option>
+                {divisions.map(division => (
+                  <option key={division.id} value={division.id}>
+                    {division.div_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Department Selection */}
+            <div className="form-group">
+              <label>Department:</label>
+              <select
+                value={selectedDepartment}
+                onChange={handleDepartmentChange}
+                disabled={!selectedDivision}
+                required
+              >
+                <option value="">Select Department</option>
+                {departments.map(department => (
+                  <option key={department.id} value={department.id}>
+                    {department.dept_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Employee Selection */}
+            <div className="form-group">
+              <label>Employee:</label>
+              <select
+                value={selectedEmployee}
+                onChange={handleEmployeeChange}
+                disabled={!selectedDepartment}
+                required
+              >
+                <option value="">Select Employee</option>
+                {employees.map(employee => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.emp_name}
+                  </option>
+                ))}
+              </select>
               {formData.emp_id && (
-                <small className="form-hint">Employee selected: ID {formData.emp_id}</small>
+                <small className="form-hint">Employee selected: {formData.emp_name} (ID: {formData.emp_id})</small>
               )}
             </div>
 
