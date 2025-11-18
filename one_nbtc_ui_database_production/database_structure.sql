@@ -75,6 +75,7 @@ CREATE TABLE `register`  (
   `van_round_id` tinyint(1) NULL DEFAULT NULL,
   `take_food` varchar(60) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
   `sys_datetime` datetime NULL DEFAULT current_timestamp(),
+  `is_deleted` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=Not Deleted , 1=Deleted',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 20 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
 

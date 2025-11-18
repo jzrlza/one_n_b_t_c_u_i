@@ -16,3 +16,4 @@ INSERT INTO `users` VALUES (1, 'one_admin', '$2a$12$2XXyaujvn6FBac/zLLib0OavSp8y
 
 ALTER TABLE employee ADD COLUMN is_deleted tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=Not Deleted , 1=Deleted';
 ALTER TABLE users ADD COLUMN is_deleted tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=Not Deleted , 1=Deleted';
+ALTER TABLE register ADD COLUMN is_deleted tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=Not Deleted , 1=Deleted';
