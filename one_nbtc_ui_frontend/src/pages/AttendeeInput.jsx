@@ -121,7 +121,10 @@ const AttendeeInput = ({ user, onLogout }) => {
         phone_number: formData.phone_number,
         is_attend: parseInt(formData.is_attend),
         take_van_id: parseInt(formData.take_van_id),
-        van_round_id: parseInt(formData.van_round_id),
+        // Only include van_round_id if take_van_id is 1 or 2
+        van_round_id: (formData.take_van_id === '1' || formData.take_van_id === '2') 
+          ? parseInt(formData.van_round_id) 
+          : null,
         take_food: parseInt(formData.take_food)
       };
       
@@ -141,11 +144,16 @@ const AttendeeInput = ({ user, onLogout }) => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
   };
+
+  // Check if van_round_id should be disabled
+  const isVanRoundDisabled = formData.take_van_id === '3' || formData.take_van_id === '4';
 
   const handleModalClose = () => {
     closeModal();
@@ -253,7 +261,9 @@ const AttendeeInput = ({ user, onLogout }) => {
                 name="van_round_id"
                 value={formData.van_round_id}
                 onChange={handleChange}
-                required
+                disabled={isVanRoundDisabled}
+                required={!isVanRoundDisabled}
+                className={isVanRoundDisabled ? 'disabled-field' : ''}
               >
                 {Object.entries(registerEnums.van_round_id).map(([key, value]) => (
                   <option key={key} value={key}>
@@ -261,6 +271,11 @@ const AttendeeInput = ({ user, onLogout }) => {
                   </option>
                 ))}
               </select>
+              {isVanRoundDisabled && (
+                <small className="form-hint">
+                  Van round is not applicable when "กลับอย่างเดียว" or "ไม่ประสงค์ (เดินทางเอง)" is selected
+                </small>
+              )}
             </div>
 
             <div className="form-group">
