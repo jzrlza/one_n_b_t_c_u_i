@@ -23,6 +23,7 @@ Today
 Tomorrow
 - Thai Language
 - make inactive flag in case of annual database clear for attendance registrations
+- Make choosing employee on attendance registration more like select box list than search
 - display phone number for sheet 3 and 4
 (reference by the offical form : Screenshot 2025-11-18 161447.png)
 
