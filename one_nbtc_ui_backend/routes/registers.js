@@ -3,36 +3,48 @@ const { getConnection } = require('../config/database');
 const router = express.Router();
 
 // GET all registers with employee names
+// GET all registers with employee names (alternative approach)
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const connection = await getConnection();
+
+    // Validate and parse parameters
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, Math.min(parseInt(limit), 100)); // Cap at 100 for safety
+    const offset = (pageNum - 1) * limitNum;
     
-    const offset = (page - 1) * limit;
-    
+    // Build query with inline values for LIMIT (since they're validated numbers)
     const query = `
       SELECT 
         r.*,
         e.emp_name
       FROM register r
       LEFT JOIN employee e ON r.emp_id = e.id
+      WHERE r.is_deleted = 0 AND e.is_deleted = 0
       ORDER BY r.sys_datetime DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${limitNum} OFFSET ${offset}
     `;
     
-    const [rows] = await connection.execute(query, [limit.toString(), offset.toString()]);
+    const [rows] = await connection.execute(query);
     
     // Get total count
-    const [countResult] = await connection.execute('SELECT COUNT(*) as total FROM register');
+    const countQuery = `
+      SELECT COUNT(*) as total 
+      FROM register r
+      LEFT JOIN employee e ON r.emp_id = e.id
+      WHERE r.is_deleted = 0 AND e.is_deleted = 0
+    `;
+    const [countResult] = await connection.execute(countQuery);
     
     await connection.end();
     
     res.json({
       registers: rows,
       total: countResult[0].total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(countResult[0].total / limit)
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(countResult[0].total / limitNum)
     });
   } catch (error) {
     console.log('Database error:', error.message);
@@ -164,15 +176,34 @@ router.get('/employees/search', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food } = req.body;
+    
     const connection = await getConnection();
     
+    // Check if employee exists and is not deleted
+    const [empRows] = await connection.execute(
+      'SELECT emp_name FROM employee WHERE id = ? AND is_deleted = 0',
+      [emp_id]
+    );
+    
+    if (empRows.length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    
     const [result] = await connection.execute(
-      'INSERT INTO register (emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO register (emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)',
       [emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food]
     );
     
+    // Update employee's is_register status
+    await connection.execute(
+      'UPDATE employee SET is_register = 1 WHERE id = ?',
+      [emp_id]
+    );
+    
     await connection.end();
-    res.json({ success: true, id: result.insertId });
+    
+    res.json({ id: result.insertId, message: 'Registration created successfully' });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
@@ -184,15 +215,43 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food } = req.body;
+    
     const connection = await getConnection();
     
-    await connection.execute(
-      'UPDATE register SET emp_id = ?, phone_number = ?, is_attend = ?, take_van_id = ?, van_round_id = ?, take_food = ? WHERE id = ?',
+    // Check if register exists and is not deleted
+    const [registerRows] = await connection.execute(
+      'SELECT id FROM register WHERE id = ? AND is_deleted = 0',
+      [id]
+    );
+    
+    if (registerRows.length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Register not found' });
+    }
+    
+    // Check if employee exists and is not deleted
+    const [empRows] = await connection.execute(
+      'SELECT emp_name FROM employee WHERE id = ? AND is_deleted = 0',
+      [emp_id]
+    );
+    
+    if (empRows.length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    
+    const [result] = await connection.execute(
+      'UPDATE register SET emp_id = ?, phone_number = ?, is_attend = ?, take_van_id = ?, van_round_id = ?, take_food = ? WHERE id = ? AND is_deleted = 0',
       [emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food, id]
     );
     
     await connection.end();
-    res.json({ success: true });
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Register not found' });
+    }
+    
+    res.json({ message: 'Registration updated successfully' });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
@@ -226,18 +285,25 @@ router.get('/single/:id', async (req, res) => {
 });
 
 // DELETE register
+// Soft delete register
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
     const connection = await getConnection();
     
-    await connection.execute(
-      'DELETE FROM register WHERE id = ?',
+    const [result] = await connection.execute(
+      'UPDATE register SET is_deleted = 1 WHERE id = ?',
       [id]
     );
     
     await connection.end();
-    res.json({ success: true });
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Register not found' });
+    }
+    
+    res.json({ message: 'Registration deleted successfully' });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
