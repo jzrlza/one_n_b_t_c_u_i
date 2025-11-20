@@ -19,9 +19,9 @@ Done
 - Van Service: if 0 or 1, show Van Round, else hide and leave value blank "-"
 - Make choosing employee on attendance registration more like select box list than search
 - make inactive flag in case of annual database clear for attendance registrations
+- Thai Language
 
 Today
-- Thai Language
 - display phone number for sheet 3 and 4
 (reference by the offical form : Screenshot 2025-11-18 161447.png)
 
