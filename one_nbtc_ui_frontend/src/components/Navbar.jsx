@@ -20,7 +20,7 @@ const Navbar = ({ user, onLogout }) => {
             onClick={() => navigate('/attendance')}
             className={`nav-tab ${location.pathname === '/attendance' ? 'active' : ''}`}
           >
-            การลงทะเบียน
+            การลงทะเบียนเข้าร่วมงาน
           </button>
         </div>
       </div>
