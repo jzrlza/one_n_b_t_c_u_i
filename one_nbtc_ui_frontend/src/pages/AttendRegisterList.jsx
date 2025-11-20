@@ -33,7 +33,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching registers:', error);
       setRegisters([]);
-      showModal('error', 'Failed to fetch registers');
+      showModal('error', 'ไม่สามารถดึงข้อมูลการลงทะเบียนได้');
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
   };
 
   const handleDelete = (registerId) => {
-    showModal('confirm', 'Are you sure you want to delete this registration?', registerId);
+    showModal('confirm', 'คุณแน่ใจหรือไม่ที่จะลบการลงทะเบียนนี้?', registerId);
   };
 
   const confirmDelete = async () => {
@@ -70,10 +70,10 @@ const AttendRegisterList = ({ user, onLogout }) => {
     try {
       await axios.delete(`/api/registers/${modal.registerId}`);
       fetchRegisters(currentPage);
-      showModal('success', 'Registration deleted successfully');
+      showModal('success', 'ลบการลงทะเบียนเรียบร้อยแล้ว');
     } catch (error) {
       console.error('Error deleting register:', error);
-      showModal('error', 'Failed to delete registration');
+      showModal('error', 'ไม่สามารถลบการลงทะเบียนได้');
     }
   };
 
@@ -89,13 +89,13 @@ const AttendRegisterList = ({ user, onLogout }) => {
       
       if (response.data.success) {
         exportToExcel(response.data.registers, response.data.unregisteredEmployees);
-        showModal('success', 'Excel file exported successfully!');
+        showModal('success', 'ส่งออกไฟล์ Excel สำเร็จ!');
       } else {
-        showModal('error', 'Failed to export data: ' + response.data.error);
+        showModal('error', 'ไม่สามารถส่งออกข้อมูลได้: ' + response.data.error);
       }
     } catch (error) {
       console.error('Export error:', error);
-      showModal('error', 'Failed to export Excel file: ' + error.message);
+      showModal('error', 'ไม่สามารถส่งออกไฟล์ Excel ได้: ' + error.message);
     } finally {
       setExportLoading(false);
     }
@@ -112,19 +112,19 @@ const AttendRegisterList = ({ user, onLogout }) => {
       <main className="app-main">
         <section className="registers-section">
           <div className="section-header">
-            <h2>Attendance Registrations ({totalRegisters})</h2>
+            <h2>การลงทะเบียนเข้าร่วมงาน ({totalRegisters})</h2>
             <button onClick={() => fetchRegisters(currentPage)} disabled={loading} className="refresh-btn">
-            {loading ? 'Loading...' : 'Refresh'}
+            {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
           </button>
             <button onClick={handleAddRegister} className="add-btn">
-              Add Registration
+              เพิ่มการลงทะเบียน
             </button>
             <button 
                 onClick={handleExportExcel} 
                 disabled={exportLoading || totalRegisters === 0}
                 className="export-btn"
               >
-                {exportLoading ? 'Exporting...' : 'Export Excel'}
+                {exportLoading ? 'กำลังส่งออก...' : 'ส่งออก Excel'}
               </button>
           </div>
           
@@ -136,11 +136,11 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   disabled={currentPage === 1}
                   className="page-btn"
                 >
-                  Previous
+                  ก่อนหน้า
                 </button>
                 
                 <span className="page-info">
-                  Page {currentPage} of {totalPages}
+                  หน้า {currentPage} จาก {totalPages}
                 </span>
                 
                 <button 
@@ -148,7 +148,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   disabled={currentPage === totalPages}
                   className="page-btn"
                 >
-                  Next
+                  ถัดไป
                 </button>
               </div>
           
@@ -158,15 +158,15 @@ const AttendRegisterList = ({ user, onLogout }) => {
                 <table className="registers-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Employee Name</th>
-                      <th>Phone Number</th>
-                      <th>Attendance</th>
-                      <th>Van Service</th>
-                      <th>Van Round</th>
-                      <th>Food Preference</th>
-                      <th>Registration Date</th>
-                      <th>Actions</th>
+                      <th>รหัส</th>
+                      <th>ชื่อ-นามสกุล</th>
+                      <th>เบอร์โทรศัพท์มือถือ</th>
+                      <th>ประสงค์เข้าร่วมงาน</th>
+                      <th>ประสงค์ขึ้นรถตู้ของสำนักงาน</th>
+                      <th>รอบรถตู้สำนักงานเดินทางในช่วงเช้า</th>
+                      <th>อาหาร</th>
+                      <th>วันที่ลงทะเบียน</th>
+                      <th>การดำเนินการ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -185,13 +185,13 @@ const AttendRegisterList = ({ user, onLogout }) => {
                             onClick={() => handleEdit(register.id)}
                             className="edit-btn"
                           >
-                            Edit
+                            แก้ไข
                           </button>
                           <button 
                             onClick={() => handleDelete(register.id)}
                             className="delete-btn"
                           >
-                            Delete
+                            ลบ
                           </button>
                         </td>
                       </tr>
@@ -206,11 +206,11 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   disabled={currentPage === 1}
                   className="page-btn"
                 >
-                  Previous
+                  ก่อนหน้า
                 </button>
                 
                 <span className="page-info">
-                  Page {currentPage} of {totalPages}
+                  หน้า {currentPage} จาก {totalPages}
                 </span>
                 
                 <button 
@@ -218,12 +218,12 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   disabled={currentPage === totalPages}
                   className="page-btn"
                 >
-                  Next
+                  ถัดไป
                 </button>
               </div>
             </>
           ) : (
-            <p>No registrations found.</p>
+            <p>ไม่พบการลงทะเบียน</p>
           )}
         </section>
       </main>
@@ -232,11 +232,11 @@ const AttendRegisterList = ({ user, onLogout }) => {
       <Modal 
         isOpen={modal.isOpen && ['success', 'error'].includes(modal.type)} 
         onClose={closeModal}
-        title={modal.type === 'success' ? 'Success' : 'Error'}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={closeModal} className="modal-btn primary">OK</button>
+          <button onClick={closeModal} className="modal-btn primary">ตกลง</button>
         </div>
       </Modal>
 
@@ -244,12 +244,12 @@ const AttendRegisterList = ({ user, onLogout }) => {
       <Modal 
         isOpen={modal.isOpen && modal.type === 'confirm'} 
         onClose={closeModal}
-        title="Confirm Delete"
+        title="ยืนยันการลบ"
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={confirmDelete} className="modal-btn danger">Delete</button>
-          <button onClick={closeModal} className="modal-btn secondary">Cancel</button>
+          <button onClick={confirmDelete} className="modal-btn danger">ลบ</button>
+          <button onClick={closeModal} className="modal-btn secondary">ยกเลิก</button>
         </div>
       </Modal>
     </div>

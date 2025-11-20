@@ -56,7 +56,7 @@ const AttendeeInput = ({ user, onLogout }) => {
       setDivisions(response.data);
     } catch (error) {
       console.error('Error fetching divisions:', error);
-      showModal('error', 'Failed to load divisions');
+      showModal('error', 'ไม่สามารถโหลดข้อมูลสายงานได้');
     }
   };
 
@@ -70,7 +70,7 @@ const AttendeeInput = ({ user, onLogout }) => {
       setSelectedEmployee('');
     } catch (error) {
       console.error('Error fetching departments:', error);
-      showModal('error', 'Failed to load departments');
+      showModal('error', 'ไม่สามารถโหลดข้อมูลสำนักได้');
     }
   };
 
@@ -82,7 +82,7 @@ const AttendeeInput = ({ user, onLogout }) => {
       setSelectedEmployee('');
     } catch (error) {
       console.error('Error fetching employees:', error);
-      showModal('error', 'Failed to load employees');
+      showModal('error', 'ไม่สามารถโหลดข้อมูลพนักงานได้');
     }
   };
 
@@ -122,7 +122,7 @@ const AttendeeInput = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('Error fetching register:', error);
-      showModal('error', 'Failed to load registration data');
+      showModal('error', 'ไม่สามารถโหลดข้อมูลการลงทะเบียนได้');
     } finally {
       setPageLoading(false);
     }
@@ -195,7 +195,7 @@ const AttendeeInput = ({ user, onLogout }) => {
     
     // Validate employee selection
     if (!formData.emp_id) {
-      showModal('error', 'Please select an employee');
+      showModal('error', 'กรุณาเลือกพนักงาน');
       return;
     }
     
@@ -216,14 +216,14 @@ const AttendeeInput = ({ user, onLogout }) => {
       
       if (isEditMode) {
         await axios.put(`/api/registers/${id}`, submitData);
-        showModal('success', 'Registration updated successfully');
+        showModal('success', 'อัพเดทการลงทะเบียนเรียบร้อยแล้ว');
       } else {
         await axios.post('/api/registers', submitData);
-        showModal('success', 'Registration created successfully');
+        showModal('success', 'เพิ่มการลงทะเบียนเรียบร้อยแล้ว');
       }
     } catch (error) {
       console.error('Error saving registration:', error);
-      showModal('error', 'Failed to save registration: ' + (error.response?.data?.error || error.message));
+      showModal('error', 'ไม่สามารถบันทึกการลงทะเบียนได้: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -254,7 +254,7 @@ const AttendeeInput = ({ user, onLogout }) => {
   };
 
   if (pageLoading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading">กำลังโหลด...</div>;
   }
 
   return (
@@ -263,18 +263,18 @@ const AttendeeInput = ({ user, onLogout }) => {
       
       <main className="app-main">
         <section className="form-section">
-          <h2>{isEditMode ? 'Edit Registration' : 'Add New Registration'}</h2>
+          <h2>{isEditMode ? 'แก้ไขการลงทะเบียน' : 'เพิ่มการลงทะเบียนใหม่'}</h2>
           
           <form onSubmit={handleSubmit} className="employee-form">
             {/* Division Selection */}
             <div className="form-group">
-              <label>Division:</label>
+              <label>สายงาน:</label>
               <select
                 value={selectedDivision}
                 onChange={handleDivisionChange}
                 required
               >
-                <option value="">Select Division</option>
+                <option value="">เลือกสายงาน</option>
                 {divisions.map(division => (
                   <option key={division.id} value={division.id}>
                     {division.div_name}
@@ -285,14 +285,14 @@ const AttendeeInput = ({ user, onLogout }) => {
 
             {/* Department Selection */}
             <div className="form-group">
-              <label>Department:</label>
+              <label>สำนัก:</label>
               <select
                 value={selectedDepartment}
                 onChange={handleDepartmentChange}
                 disabled={!selectedDivision}
                 required
               >
-                <option value="">Select Department</option>
+                <option value="">เลือกสำนัก</option>
                 {departments.map(department => (
                   <option key={department.id} value={department.id}>
                     {department.dept_name}
@@ -303,14 +303,14 @@ const AttendeeInput = ({ user, onLogout }) => {
 
             {/* Employee Selection */}
             <div className="form-group">
-              <label>Employee:</label>
+              <label>ชื่อ-นามสกุล:</label>
               <select
                 value={selectedEmployee}
                 onChange={handleEmployeeChange}
                 disabled={!selectedDepartment}
                 required
               >
-                <option value="">Select Employee</option>
+                <option value="">เลือกพนักงาน</option>
                 {employees.map(employee => (
                   <option key={employee.id} value={employee.id}>
                     {employee.emp_name}
@@ -318,23 +318,23 @@ const AttendeeInput = ({ user, onLogout }) => {
                 ))}
               </select>
               {formData.emp_id && (
-                <small className="form-hint">Employee selected: {formData.emp_name} (ID: {formData.emp_id})</small>
+                <small className="form-hint">เลือกพนักงานแล้ว: {formData.emp_name} (รหัส: {formData.emp_id})</small>
               )}
             </div>
 
             <div className="form-group">
-              <label>Phone Number:</label>
+              <label>เบอร์โทรศัพท์มือถือ:</label>
               <input
                 type="text"
                 name="phone_number"
                 value={formData.phone_number}
                 onChange={handleChange}
-                placeholder="Enter phone number"
+                placeholder="ป้อนเบอร์โทรศัพท์"
               />
             </div>
 
             <div className="form-group">
-              <label>Attendance:</label>
+              <label>ประสงค์เข้าร่วมงาน:</label>
               <select
                 name="is_attend"
                 value={formData.is_attend}
@@ -350,7 +350,7 @@ const AttendeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>Van Service:</label>
+              <label>ประสงค์ขึ้นรถตู้ของสำนักงาน:</label>
               <select
                 name="take_van_id"
                 value={formData.take_van_id}
@@ -366,7 +366,7 @@ const AttendeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>Van Round:</label>
+              <label>รอบรถตู้สำนักงานเดินทางในช่วงเช้า:</label>
               <select
                 name="van_round_id"
                 value={formData.van_round_id}
@@ -383,13 +383,13 @@ const AttendeeInput = ({ user, onLogout }) => {
               </select>
               {isVanRoundDisabled && (
                 <small className="form-hint">
-                  Van round is not applicable when "กลับอย่างเดียว" or "ไม่ประสงค์ (เดินทางเอง)" is selected
+                  รอบรถตู้ไม่สามารถเลือกได้เมื่อเลือก "กลับอย่างเดียว" หรือ "ไม่ประสงค์ (เดินทางเอง)"
                 </small>
               )}
             </div>
 
             <div className="form-group">
-              <label>Food Preference:</label>
+              <label>อาหาร:</label>
               <select
                 name="take_food"
                 value={formData.take_food}
@@ -408,14 +408,14 @@ const AttendeeInput = ({ user, onLogout }) => {
 
             <div className="form-actions">
               <button type="submit" disabled={loading} className="submit-btn">
-                {loading ? 'Saving...' : (isEditMode ? 'Update Registration' : 'Add Registration')}
+                {loading ? 'กำลังบันทึก...' : (isEditMode ? 'อัพเดทการลงทะเบียน' : 'เพิ่มการลงทะเบียน')}
               </button>
               <button 
                 type="button" 
                 onClick={() => navigate('/attendance')}
                 className="cancel-btn"
               >
-                Cancel
+                ยกเลิก
               </button>
             </div>
           </form>
@@ -425,11 +425,11 @@ const AttendeeInput = ({ user, onLogout }) => {
       <Modal 
         isOpen={modal.isOpen} 
         onClose={handleModalClose}
-        title={modal.type === 'success' ? 'Success' : 'Error'}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={handleModalClose} className="modal-btn primary">OK</button>
+          <button onClick={handleModalClose} className="modal-btn primary">ตกลง</button>
         </div>
       </Modal>
     </div>

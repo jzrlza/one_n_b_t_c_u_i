@@ -14,19 +14,19 @@ const Navbar = ({ user, onLogout }) => {
             onClick={() => navigate('/')}
             className={`nav-tab ${location.pathname === '/' ? 'active' : ''}`}
           >
-            Employees
+            พนักงาน
           </button>
           <button 
             onClick={() => navigate('/attendance')}
             className={`nav-tab ${location.pathname === '/attendance' ? 'active' : ''}`}
           >
-            Attendance
+            การลงทะเบียน
           </button>
         </div>
       </div>
       <div className="nav-user">
-        Welcome, {user?.username} 
-        <button onClick={onLogout} className="logout-btn">Logout</button>
+        ยินดีต้อนรับ, {user?.username} 
+        <button onClick={onLogout} className="logout-btn">ออกจากระบบ</button>
       </div>
     </nav>
   );

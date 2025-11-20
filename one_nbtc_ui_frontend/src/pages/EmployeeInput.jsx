@@ -73,7 +73,7 @@ const EmployeeInput = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('Error fetching dropdown data:', error);
-      showModal('error', 'Failed to load dropdown data');
+      showModal('error', 'ไม่สามารถโหลดข้อมูล dropdown ได้');
       setPageLoading(false);
     }
   };
@@ -95,7 +95,7 @@ const EmployeeInput = ({ user, onLogout }) => {
       });
     } catch (error) {
       console.error('Error fetching employee:', error);
-      showModal('error', 'Failed to load employee data');
+      showModal('error', 'ไม่สามารถโหลดข้อมูลพนักงานได้');
     } finally {
       setPageLoading(false);
     }
@@ -106,7 +106,7 @@ const EmployeeInput = ({ user, onLogout }) => {
     
     // Validate department selection
     if (formData.div_id && !formData.dept_id) {
-      showModal('error', 'Please select a department for the chosen division');
+      showModal('error', 'กรุณาเลือกสำนักสำหรับสายงานที่เลือก');
       return;
     }
     
@@ -121,14 +121,14 @@ const EmployeeInput = ({ user, onLogout }) => {
       
       if (isEditMode) {
         await axios.put(`/api/employees/${id}`, submitData);
-        showModal('success', 'Employee updated successfully');
+        showModal('success', 'บันทึกข้อมูลพนักงานเรียบร้อยแล้ว');
       } else {
         await axios.post('/api/employees', submitData);
-        showModal('success', 'Employee created successfully');
+        showModal('success', 'เพิ่มพนักงานเรียบร้อยแล้ว');
       }
     } catch (error) {
       console.error('Error saving employee:', error);
-      showModal('error', 'Failed to save employee: ' + (error.response?.data?.error || error.message));
+      showModal('error', 'ไม่สามารถบันทึกพนักงานได้: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -165,7 +165,7 @@ const EmployeeInput = ({ user, onLogout }) => {
   };
 
   if (pageLoading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading">กำลังโหลด...</div>;
   }
 
   return (
@@ -174,11 +174,11 @@ const EmployeeInput = ({ user, onLogout }) => {
       
       <main className="app-main">
         <section className="form-section">
-          <h2>{isEditMode ? 'Edit Employee' : 'Add New Employee'}</h2>
+          <h2>{isEditMode ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงานใหม่'}</h2>
           
           <form onSubmit={handleSubmit} className="employee-form">
             <div className="form-group">
-              <label>Employee Name:</label>
+              <label>ชื่อ-นามสกุล:</label>
               <input
                 type="text"
                 name="emp_name"
@@ -189,14 +189,14 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>Position:</label>
+              <label>ตำแหน่ง:</label>
               <select
                 name="position_id"
                 value={formData.position_id}
                 onChange={handleChange}
                 required
               >
-                <option value="">Select Position</option>
+                <option value="">เลือกตำแหน่ง</option>
                 {positions.map(position => (
                   <option key={position.id} value={position.id}>
                     {position.position_name}
@@ -206,14 +206,14 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>Division:</label>
+              <label>สายงาน:</label>
               <select
                 name="div_id"
                 value={formData.div_id}
                 onChange={handleChange}
                 required
               >
-                <option value="">Select Division</option>
+                <option value="">เลือกสายงาน</option>
                 {divisions.map(division => (
                   <option key={division.id} value={division.id}>
                     {division.div_name}
@@ -223,7 +223,7 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>Department:</label>
+              <label>สำนัก:</label>
               <select
                 name="dept_id"
                 value={formData.dept_id}
@@ -232,7 +232,7 @@ const EmployeeInput = ({ user, onLogout }) => {
                 disabled={!formData.div_id}
               >
                 <option value="">
-                  {formData.div_id ? 'Select Department' : 'Select division first'}
+                  {formData.div_id ? 'เลือกสำนัก' : 'เลือกสายงานก่อน'}
                 </option>
                 {filteredDepartments.map(dept => (
                   <option key={dept.id} value={dept.id}>
@@ -241,7 +241,7 @@ const EmployeeInput = ({ user, onLogout }) => {
                 ))}
               </select>
               {!formData.div_id && (
-                <small className="form-hint">Please select a division first</small>
+                <small className="form-hint">กรุณาเลือกสายงานก่อน</small>
               )}
             </div>
 
@@ -249,14 +249,14 @@ const EmployeeInput = ({ user, onLogout }) => {
 
             <div className="form-actions">
               <button type="submit" disabled={loading} className="submit-btn">
-                {loading ? 'Saving...' : (isEditMode ? 'Update Employee' : 'Add Employee')}
+                {loading ? 'กำลังบันทึก...' : (isEditMode ? 'อัพเดทพนักงาน' : 'เพิ่มพนักงาน')}
               </button>
               <button 
                 type="button" 
                 onClick={() => navigate('/')}
                 className="cancel-btn"
               >
-                Cancel
+                ยกเลิก
               </button>
             </div>
           </form>
@@ -266,11 +266,11 @@ const EmployeeInput = ({ user, onLogout }) => {
       <Modal 
         isOpen={modal.isOpen} 
         onClose={handleModalClose}
-        title={modal.type === 'success' ? 'Success' : 'Error'}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={handleModalClose} className="modal-btn primary">OK</button>
+          <button onClick={handleModalClose} className="modal-btn primary">ตกลง</button>
         </div>
       </Modal>
     </div>

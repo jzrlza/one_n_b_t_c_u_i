@@ -45,7 +45,7 @@ const Home = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching employees:', error);
       setEmployees([]);
-      showModal('error', 'Failed to fetch employees');
+      showModal('error', 'ไม่สามารถดึงข้อมูลพนักงานได้');
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ const Home = ({ user, onLogout }) => {
   };
 
   const handleDelete = (employeeId) => {
-    showModal('confirm', 'Are you sure you want to delete this employee?', employeeId);
+    showModal('confirm', 'คุณแน่ใจหรือไม่ที่จะลบพนักงานคนนี้?', employeeId);
   };
 
   const confirmDelete = async () => {
@@ -88,10 +88,10 @@ const Home = ({ user, onLogout }) => {
     try {
       await axios.delete(`/api/employees/${modal.employeeId}`);
       fetchEmployees(currentPage, search);
-      showModal('success', 'Employee deleted successfully');
+      showModal('success', 'ลบพนักงานเรียบร้อยแล้ว');
     } catch (error) {
       console.error('Error deleting employee:', error);
-      showModal('error', 'Failed to delete employee');
+      showModal('error', 'ไม่สามารถลบพนักงานได้');
     }
   };
 
@@ -109,7 +109,7 @@ const Home = ({ user, onLogout }) => {
     if (!file) return;
 
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      showModal('error', 'Please select an Excel file (.xlsx or .xls)');
+      showModal('error', 'กรุณาเลือกไฟล์ Excel (.xlsx หรือ .xls)');
       return;
     }
 
@@ -129,7 +129,7 @@ const Home = ({ user, onLogout }) => {
       
     } catch (error) {
       console.error('Frontend: Import error:', error);
-      showModal('error', 'Failed to process Excel file: ' + error.message);
+      showModal('error', 'ไม่สามารถประมวลผลไฟล์ Excel ได้: ' + error.message);
       setLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -169,11 +169,11 @@ const Home = ({ user, onLogout }) => {
         
         console.log('Frontend: Operation completed successfully');
       } else {
-        showModal('error', `Operation failed: ${response.data.error}`);
+        showModal('error', `การดำเนินการล้มเหลว: ${response.data.error}`);
       }
     } catch (error) {
       console.error('Frontend: Import error:', error);
-      showModal('error', 'Failed to process Excel file: ' + error.message);
+      showModal('error', 'ไม่สามารถประมวลผลไฟล์ Excel ได้: ' + error.message);
     } finally {
       setLoading(false);
       if (fileInputRef.current) {
@@ -202,12 +202,12 @@ const Home = ({ user, onLogout }) => {
       <main className="app-main">
         <section className="employees-section">
           <div className="section-header">
-            <h2>Employees ({totalEmployees})</h2>
+            <h2>พนักงาน ({totalEmployees})</h2>
             <button onClick={handleAddEmployee} className="add-btn">
-              Add Employee
+              เพิ่มพนักงาน
             </button>
             <button onClick={handleImportClick} disabled={loading} className="import-btn">
-              {loading ? 'Processing...' : 'Import Excel'}
+              {loading ? 'กำลังประมวลผล...' : 'นำเข้า Excel'}
             </button>
           </div>
           
@@ -215,13 +215,13 @@ const Home = ({ user, onLogout }) => {
             <form onSubmit={handleSearch} className="search-form">
               <input
                 type="text"
-                placeholder="Search employees by name..."
+                placeholder="ค้นหาพนักงานด้วยชื่อ..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="search-input"
               />
               <button type="submit" disabled={loading} className="search-btn">
-                Search
+                ค้นหา
               </button>
               <button 
                 type="button" 
@@ -232,12 +232,12 @@ const Home = ({ user, onLogout }) => {
                 }}
                 className="clear-btn"
               >
-                Clear
+                ล้าง
               </button>
             </form>
             
             <button onClick={() => fetchEmployees(currentPage, search)} disabled={loading} className="refresh-btn">
-              {loading ? 'Loading...' : 'Refresh'}
+              {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
             </button>
           </div>
 
@@ -247,11 +247,11 @@ const Home = ({ user, onLogout }) => {
                   disabled={currentPage === 1}
                   className="page-btn"
                 >
-                  Previous
+                  ก่อนหน้า
                 </button>
                 
                 <span className="page-info">
-                  Page {currentPage} of {totalPages}
+                  หน้า {currentPage} จาก {totalPages}
                 </span>
                 
                 <button 
@@ -259,7 +259,7 @@ const Home = ({ user, onLogout }) => {
                   disabled={currentPage === totalPages}
                   className="page-btn"
                 >
-                  Next
+                  ถัดไป
                 </button>
               </div>
           
@@ -269,12 +269,12 @@ const Home = ({ user, onLogout }) => {
                 <table className="employees-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Name</th>
-                      <th>Position</th>
-                      <th>Department</th>
-                      <th>Division</th>
-                      <th>Actions</th>
+                      <th>รหัส</th>
+                      <th>ชื่อ-นามสกุล</th>
+                      <th>ตำแหน่ง</th>
+                      <th>สำนัก</th>
+                      <th>สายงาน</th>
+                      <th>การดำเนินการ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -290,13 +290,13 @@ const Home = ({ user, onLogout }) => {
                             onClick={() => handleEdit(employee.id)}
                             className="edit-btn"
                           >
-                            Edit
+                            แก้ไข
                           </button>
                           <button 
                             onClick={() => handleDelete(employee.id)}
                             className="delete-btn"
                           >
-                            Delete
+                            ลบ
                           </button>
                         </td>
                       </tr>
@@ -311,11 +311,11 @@ const Home = ({ user, onLogout }) => {
                   disabled={currentPage === 1}
                   className="page-btn"
                 >
-                  Previous
+                  ก่อนหน้า
                 </button>
                 
                 <span className="page-info">
-                  Page {currentPage} of {totalPages}
+                  หน้า {currentPage} จาก {totalPages}
                 </span>
                 
                 <button 
@@ -323,12 +323,12 @@ const Home = ({ user, onLogout }) => {
                   disabled={currentPage === totalPages}
                   className="page-btn"
                 >
-                  Next
+                  ถัดไป
                 </button>
               </div>
             </>
           ) : (
-            <p>No employees found.</p>
+            <p>ไม่พบพนักงาน</p>
           )}
         </section>
       </main>
@@ -337,11 +337,11 @@ const Home = ({ user, onLogout }) => {
       <Modal 
         isOpen={modal.isOpen && ['success', 'error'].includes(modal.type)} 
         onClose={closeModal}
-        title={modal.type === 'success' ? 'Success' : 'Error'}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={closeModal} className="modal-btn primary">OK</button>
+          <button onClick={closeModal} className="modal-btn primary">ตกลง</button>
         </div>
       </Modal>
 
@@ -349,12 +349,12 @@ const Home = ({ user, onLogout }) => {
       <Modal 
         isOpen={modal.isOpen && modal.type === 'confirm'} 
         onClose={closeModal}
-        title="Confirm Delete"
+        title="ยืนยันการลบ"
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={confirmDelete} className="modal-btn danger">Delete</button>
-          <button onClick={closeModal} className="modal-btn secondary">Cancel</button>
+          <button onClick={confirmDelete} className="modal-btn danger">ลบ</button>
+          <button onClick={closeModal} className="modal-btn secondary">ยกเลิก</button>
         </div>
       </Modal>
 
@@ -362,18 +362,18 @@ const Home = ({ user, onLogout }) => {
       <Modal 
         isOpen={confirmModal.isOpen} 
         onClose={() => setConfirmModal({ isOpen: false, excelData: null })}
-        title="Import Confirmation"
+        title="ยืนยันการนำเข้า"
       >
         <div className="confirm-import">
-          <p><strong>Do you want to IMPORT data to database?</strong></p>
+          <p><strong>คุณต้องการนำเข้าข้อมูลไปยังฐานข้อมูลหรือไม่?</strong></p>
           <div className="import-options">
             <div className="option">
-              <h4>✅ Import to Database</h4>
-              <p>Save employees to database (cannot be undone)</p>
+              <h4>✅ นำเข้าสู่ฐานข้อมูล</h4>
+              <p>บันทึกพนักงานลงฐานข้อมูล (ไม่สามารถย้อนกลับได้)</p>
             </div>
             <div className="option">
-              <h4>🔍 Test Only</h4>
-              <p>Validate data and show results without saving</p>
+              <h4>🔍 ทดสอบเท่านั้น</h4>
+              <p>ตรวจสอบความถูกต้องของข้อมูลและแสดงผลลัพธ์โดยไม่บันทึก</p>
             </div>
           </div>
           <div className="modal-actions">
@@ -381,19 +381,19 @@ const Home = ({ user, onLogout }) => {
               onClick={() => handleImportConfirm(true)} 
               className="modal-btn danger"
             >
-              Import to Database
+              นำเข้าสู่ฐานข้อมูล
             </button>
             <button 
               onClick={() => handleImportConfirm(false)} 
               className="modal-btn secondary"
             >
-              Test Only
+              ทดสอบเท่านั้น
             </button>
             <button 
               onClick={() => setConfirmModal({ isOpen: false, excelData: null })} 
               className="modal-btn primary"
             >
-              Cancel
+              ยกเลิก
             </button>
           </div>
         </div>
@@ -403,23 +403,23 @@ const Home = ({ user, onLogout }) => {
       <Modal 
         isOpen={importModal.isOpen} 
         onClose={closeImportModal}
-        title={importModal.mode === 'import' ? 'Excel Import Results' : 'Excel Test Results'}
+        title={importModal.mode === 'import' ? 'ผลการนำเข้า Excel' : 'ผลการทดสอบ Excel'}
       >
         {importModal.results && (
           <div className="import-results">
             <div className="import-summary">
-              <p><strong>Total Rows:</strong> {importModal.results.totalRows}</p>
+              <p><strong>จำนวนแถวทั้งหมด:</strong> {importModal.results.totalRows}</p>
               <p className={importModal.mode === 'import' ? 'success-text' : 'info-text'}>
-                <strong>{importModal.mode === 'import' ? 'Successfully Saved:' : 'Valid Rows:'}</strong> {importModal.mode === 'import' ? importModal.results.savedCount : importModal.results.validRows}
+                <strong>{importModal.mode === 'import' ? 'บันทึกสำเร็จ:' : 'แถวที่ถูกต้อง:'}</strong> {importModal.mode === 'import' ? importModal.results.savedCount : importModal.results.validRows}
               </p>
               <p className="error-text">
-                <strong>Errors:</strong> {importModal.mode === 'import' ? importModal.results.errorCount : importModal.results.errorRows}
+                <strong>ข้อผิดพลาด:</strong> {importModal.mode === 'import' ? importModal.results.errorCount : importModal.results.errorRows}
               </p>
             </div>
             
             {importModal.results.errors && importModal.results.errors.length > 0 && (
               <div className="import-errors">
-                <h4>Errors ({importModal.results.errors.length}):</h4>
+                <h4>ข้อผิดพลาด ({importModal.results.errors.length}):</h4>
                 <div className="error-list scroll-box">
                   {importModal.results.errors.map((error, index) => (
                     <div key={index} className="error-item">
@@ -432,16 +432,16 @@ const Home = ({ user, onLogout }) => {
             
             {importModal.mode === 'import' && importModal.results.saved && importModal.results.saved.length > 0 && (
               <div className="import-success">
-                <h4>Successfully Imported ({importModal.results.saved.length}):</h4>
+                <h4>นำเข้าสำเร็จ ({importModal.results.saved.length}):</h4>
                 <div className="success-list scroll-box">
                   {importModal.results.saved.slice(0, 10).map((item, index) => (
                     <div key={index} className="success-item">
-                      <strong>Row {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
+                      <strong>แถวที่ {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
                     </div>
                   ))}
                   {importModal.results.saved.length > 10 && (
                     <div className="more-items">
-                      ... and {importModal.results.saved.length - 10} more employees
+                      ... และอีก {importModal.results.saved.length - 10} พนักงาน
                     </div>
                   )}
                 </div>
@@ -450,11 +450,11 @@ const Home = ({ user, onLogout }) => {
             
             {importModal.mode === 'test' && importModal.results.data && importModal.results.data.length > 0 && (
               <div className="import-preview">
-                <h4>Preview (First 5 rows):</h4>
+                <h4>ตัวอย่าง (5 แถวแรก):</h4>
                 <div className="preview-table scroll-box">
                   {importModal.results.data.slice(0, 5).map((item, index) => (
                     <div key={index} className="preview-item">
-                      <strong>Row {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
+                      <strong>แถวที่ {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
                     </div>
                   ))}
                 </div>
@@ -463,7 +463,7 @@ const Home = ({ user, onLogout }) => {
             
             <div className="modal-actions">
               <button onClick={closeImportModal} className="modal-btn primary">
-                Close
+                ปิด
               </button>
             </div>
           </div>

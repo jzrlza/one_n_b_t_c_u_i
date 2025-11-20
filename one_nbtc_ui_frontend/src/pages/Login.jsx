@@ -32,7 +32,7 @@ const Login = ({ onLogin }) => {
         navigate('/');
       }
     } catch (error) {
-      alert('Login failed: ' + (error.response?.data?.error || error.message));
+      alert('เข้าสู่ระบบล้มเหลว: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ const Login = ({ onLogin }) => {
       onLogin(response.data.user);
       navigate('/');
     } catch (error) {
-      alert('2FA verification failed: ' + (error.response?.data?.error || error.message));
+      alert('การยืนยันสองขั้นตอนล้มเหลว: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ const Login = ({ onLogin }) => {
       setSecret(response.data.secret);
       setShowSetup2FA(true);
     } catch (error) {
-      alert('2FA setup failed: ' + (error.response?.data?.error || error.message));
+      alert('การตั้งค่าสองขั้นตอนล้มเหลว: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -76,16 +76,16 @@ const Login = ({ onLogin }) => {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(secret);
-    alert('Secret key copied to clipboard!');
+    alert('คัดลอกรหัสลับไว้แล้ว!');
   };
 
   // 2FA Setup Screen
   if (showSetup2FA) {
     return (
       <div className="login-container">
-        <h2>Setup Two-Factor Authentication</h2>
+        <h2>ตั้งค่าการยืนยันตัวตนสองขั้นตอน</h2>
         <div className="setup-2fa">
-          <p>Scan this QR code with your authenticator app:</p>
+          <p>สแกน QR Code นี้ด้วยแอปยืนยันตัวตนของคุณ:</p>
           
           {qrCode && (
             <div className="qr-code-container">
@@ -94,7 +94,7 @@ const Login = ({ onLogin }) => {
           )}
           
           <div className="secret-container">
-            <p>Or enter this secret key manually:</p>
+            <p>หรือป้อนรหัสลับนี้ด้วยตนเอง:</p>
             <div className="secret-display">
               <code>{secret}</code>
               <button 
@@ -102,26 +102,26 @@ const Login = ({ onLogin }) => {
                 onClick={copyToClipboard}
                 className="copy-btn"
               >
-                Copy
+                คัดลอก
               </button>
             </div>
           </div>
           
           <p className="instruction">
-            After setting up, enter the 6-digit code from your authenticator app:
+            หลังจากตั้งค่าแล้ว กรุณาป้อนรหัส 6 หลักจากแอปยืนยันตัวตนของคุณ:
           </p>
           
           <form onSubmit={verify2FA}>
             <input
               type="text"
-              placeholder="Enter 6-digit code"
+              placeholder="ป้อนรหัส 6 หลัก"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
               maxLength={6}
             />
             <button type="submit" disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify & Complete Setup'}
+              {loading ? 'กำลังยืนยัน...' : 'ยืนยันและตั้งค่าเสร็จสิ้น'}
             </button>
           </form>
         </div>
@@ -133,34 +133,34 @@ const Login = ({ onLogin }) => {
   if (requires2FA) {
     return (
       <div className="login-container">
-        <h2>Two-Factor Authentication</h2>
+        <h2>การยืนยันตัวตนสองขั้นตอน</h2>
         
         <div className="auth-options">
-          <p>Enter the 6-digit code from your authenticator app:</p>
+          <p>ป้อนรหัส 6 หลักจากแอปยืนยันตัวตนของคุณ:</p>
           
           <form onSubmit={verify2FA}>
             <input
               type="text"
-              placeholder="Enter 6-digit code"
+              placeholder="ป้อนรหัส 6 หลัก"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
               maxLength={6}
             />
             <button type="submit" disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify'}
+              {loading ? 'กำลังยืนยัน...' : 'ยืนยัน'}
             </button>
           </form>
           
           <div className="setup-prompt">
-            <p>Don't have 2FA setup yet?</p>
+            <p>ยังไม่ได้ตั้งค่าการยืนยันสองขั้นตอน?</p>
             <button 
               type="button" 
               onClick={setup2FA}
               disabled={loading}
               className="setup-btn"
             >
-              Setup 2FA Now
+              ตั้งค่าการยืนยันสองขั้นตอนตอนนี้
             </button>
           </div>
         </div>
@@ -171,24 +171,24 @@ const Login = ({ onLogin }) => {
   // Initial Login Screen
   return (
     <div className="login-container">
-      <h2>Login to ONE NBTC</h2>
+      <h2>เข้าสู่ระบบ ONE NBTC</h2>
       <form onSubmit={handleLogin}>
         <input
           type="text"
-          placeholder="Username"
+          placeholder="ชื่อผู้ใช้"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder="รหัสผ่าน"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
         <button type="submit" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
         </button>
       </form>
     </div>
