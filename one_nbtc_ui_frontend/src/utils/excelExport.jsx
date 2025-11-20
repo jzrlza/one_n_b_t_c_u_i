@@ -76,13 +76,14 @@ const prepareTransportationSheet = (registers) => {
 };
 
 const prepareFoodSheet = (registers) => {
-  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E', 'อาหารที่รับประทาน (ข้อ 8 คือเอาคำตอบ ข้อ 1-2)'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E', 'เบอร์โทร ข้อ 5', 'อาหารที่รับประทาน (ข้อ 8 คือเอาคำตอบ ข้อ 1-2)'];
   
   const rows = registers.map((reg, index) => [
     index + 1,
     reg.emp_name || '-',
     reg.position_name || '-',
     reg.dept_name || '-',
+    reg.phone_number || '-',
     getEnumDisplay('take_food', reg.take_food)
   ]);
   
@@ -90,28 +91,30 @@ const prepareFoodSheet = (registers) => {
 };
 
 const prepareAttendingSheet = (registers) => {
-  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E', 'เบอร์โทร ข้อ 5'];
   
   const attending = registers.filter(reg => reg.is_attend == 1);
   const rows = attending.map((reg, index) => [
     index + 1,
     reg.emp_name || '-',
     reg.position_name || '-',
-    reg.dept_name || '-'
+    reg.dept_name || '-',
+    reg.phone_number || '-'
   ]);
   
   return [headers, ...rows];
 };
 
 const prepareNotAttendingSheet = (registers) => {
-  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E'];
+  const headers = ['ID', 'ชื่อ-สกุล B', 'ตำแหน่ง C', 'สังกัดย่อ E', 'เบอร์โทร ข้อ 5'];
   
   const notAttending = registers.filter(reg => reg.is_attend != 1);
   const rows = notAttending.map((reg, index) => [
     index + 1,
     reg.emp_name || '-',
     reg.position_name || '-',
-    reg.dept_name || '-'
+    reg.dept_name || '-',
+    reg.phone_number || '-'
   ]);
   
   return [headers, ...rows];
