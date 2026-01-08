@@ -1,5 +1,47 @@
-/* ===== RESET & BASE STYLES ===== */
+/* =============================================
+   FONT DEFINITIONS
+   ============================================= */
+
+@font-face {
+    font-family: 'THSarabun';
+    src: url('./fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'THSarabun';
+    src: url('./fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'THSarabun';
+    src: url('./fonts/THSarabun-Italic.ttf') format('truetype');
+    font-weight: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'THSarabun';
+    src: url('./fonts/THSarabun-BoldItalic.ttf') format('truetype');
+    font-weight: bold;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* =============================================
+   GLOBAL STYLES & RESET
+   ============================================= */
+
 * {
+    font-family: 'THSarabun', 'Sarabun', 'Tahoma', 'Arial', sans-serif;
+    line-height: 1.5;
+    font-size: 24px;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
