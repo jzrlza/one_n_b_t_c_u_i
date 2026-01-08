@@ -52,11 +52,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET departments for dropdown
-router.get('/departments', async (req, res) => {
+router.get('/divisions', async (req, res) => {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute('SELECT * FROM dept ORDER BY dept_name');
+    const [rows] = await connection.execute('SELECT * FROM division ORDER BY div_name');
     await connection.end();
     res.json(rows);
   } catch (error) {
@@ -65,10 +64,22 @@ router.get('/departments', async (req, res) => {
   }
 });
 
-router.get('/divisions', async (req, res) => {
+// GET departments for dropdown
+router.get('/departments', async (req, res) => {
   try {
+    const { div_id } = req.query;
+    
+    if (!div_id) {
+      return res.status(400).json({ error: 'div_id is required' });
+    }
+
     const connection = await getConnection();
-    const [rows] = await connection.execute('SELECT * FROM division ORDER BY div_name');
+    const [rows] = await connection.execute(
+      `SELECT * FROM dept d
+      WHERE d.div_id = ?
+      ORDER BY dept_name`, 
+      [div_id]
+      );
     await connection.end();
     res.json(rows);
   } catch (error) {
