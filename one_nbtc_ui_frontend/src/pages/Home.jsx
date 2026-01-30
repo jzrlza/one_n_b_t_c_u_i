@@ -147,6 +147,7 @@ const Home = ({ user, onLogout }) => {
     if (!confirmModal.excelData) return;
     
     setLoading(true);
+    setExcelLoadModal({ isOpen: true });
     
     try {
       let response;
@@ -159,6 +160,7 @@ const Home = ({ user, onLogout }) => {
       }
       
       if (response.data.success) {
+        setExcelLoadModal({ isOpen: false });
         setImportModal({
           isOpen: true,
           results: response.data,
@@ -175,9 +177,11 @@ const Home = ({ user, onLogout }) => {
         showModal('error', `การดำเนินการล้มเหลว: ${response.data.error}`);
       }
     } catch (error) {
+      setExcelLoadModal({ isOpen: false });
       console.error('Frontend: Import error:', error);
       showModal('error', 'ไม่สามารถประมวลผลไฟล์ Excel ได้: ' + error.message);
     } finally {
+      setExcelLoadModal({ isOpen: false });
       setLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
