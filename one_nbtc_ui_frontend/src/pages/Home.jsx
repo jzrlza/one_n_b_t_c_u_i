@@ -4,6 +4,7 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
 import { parseExcelToArray } from '../utils/excelParser';
+import loadImage from '../res/loading.gif';
 
 const Home = ({ user, onLogout }) => {
   const API_URL = import.meta.env.VITE_API_URL || '';
@@ -16,6 +17,7 @@ const Home = ({ user, onLogout }) => {
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '', employeeId: null });
   const [importModal, setImportModal] = useState({ isOpen: false, results: null, mode: 'test' });
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, excelData: null });
+  const [excelLoadModal, setExcelLoadModal] = useState({ isOpen: false });
   const navigate = useNavigate();
 
   // Add useRef at the top with other useState
@@ -344,6 +346,25 @@ const Home = ({ user, onLogout }) => {
         <div className="modal-actions">
           <button onClick={closeModal} className="modal-btn primary">ตกลง</button>
         </div>
+      </Modal>
+
+      {/* Modal for import loading */}
+      <Modal 
+        isOpen={excelLoadModal.isOpen} 
+        title={'Loading...'}
+      >
+      <h1><img src={loadImage} 
+            alt={
+              `กำลังโหลด`
+            } style={{
+              width: '40px',
+              height: '40px',
+              display: 'block',
+              marginLeft: 'auto',
+              marginRight: 'auto'
+            }}
+            /></h1>
+        <p>กำลังประมวลผล...</p>
       </Modal>
 
       {/* Modal for confirmation */}
