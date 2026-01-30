@@ -10,8 +10,6 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "${DB_PORT}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./one_nbtc_ui_database_production/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -21,7 +19,7 @@ services:
   backend:
     build: ./one_nbtc_ui_backend
     ports:
-      - "5000:5000"
+      - "0.0.0.0:5000:5000"
     environment:
       DB_HOST: database
       DB_PORT: 3306
@@ -38,24 +36,10 @@ services:
   frontend:
     build: ./one_nbtc_ui_frontend
     ports:
-      - "3000:4173"
+      - "0.0.0.0:3000:3000"
     environment:
-      VITE_API_URL: /api
+      VITE_API_URL: ${VITE_API_URL}
     depends_on:
-      - backend
-    networks:
-      - one-nbtc-network
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend
       - backend
     networks:
       - one-nbtc-network
