@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import { parseExcelToArray } from '../utils/excelParser';
 
 const Home = ({ user, onLogout }) => {
+  const API_URL = import.meta.env.VITE_API_URL || '';
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -37,7 +38,7 @@ const Home = ({ user, onLogout }) => {
         params.append('search', searchTerm);
       }
       
-      const response = await axios.get(`/api/employees?${params}`);
+      const response = await axios.get(`${API_URL}/api/employees?${params}`);
       setEmployees(response.data.employees || []);
       setTotalPages(response.data.totalPages);
       setTotalEmployees(response.data.total);
@@ -86,7 +87,7 @@ const Home = ({ user, onLogout }) => {
     if (!modal.employeeId) return;
     
     try {
-      await axios.delete(`/api/employees/${modal.employeeId}`);
+      await axios.delete(`${API_URL}/api/employees/${modal.employeeId}`);
       fetchEmployees(currentPage, search);
       showModal('success', 'ลบพนักงานเรียบร้อยแล้ว');
     } catch (error) {
@@ -149,10 +150,10 @@ const Home = ({ user, onLogout }) => {
       let response;
       if (shouldImport) {
         console.log('Frontend: Starting REAL import...');
-        response = await axios.post('/api/employees/import', { excelData: confirmModal.excelData });
+        response = await axios.post(`${API_URL}/api/employees/import`, { excelData: confirmModal.excelData });
       } else {
         console.log('Frontend: Starting TEST import...');
-        response = await axios.post('/api/employees/test-import', { excelData: confirmModal.excelData });
+        response = await axios.post(`${API_URL}/api/employees/test-import`, { excelData: confirmModal.excelData });
       }
       
       if (response.data.success) {

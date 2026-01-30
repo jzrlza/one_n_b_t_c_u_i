@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
 
 const EmployeeInput = ({ user, onLogout }) => {
+  const API_URL = import.meta.env.VITE_API_URL || '';
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!id;
@@ -57,9 +58,9 @@ const EmployeeInput = ({ user, onLogout }) => {
   const fetchDropdownData = async () => {
     try {
       const [posRes, divRes, deptRes] = await Promise.all([
-        axios.get('/api/employees/positions'),
-        axios.get('/api/employees/divisions'),
-        axios.get('/api/employees/departments')
+        axios.get(`${API_URL}/api/employees/positions`),
+        axios.get(`${API_URL}/api/employees/divisions`),
+        axios.get(`${API_URL}/api/employees/departments`)
       ]);
       setPositions(posRes.data);
       setDivisions(divRes.data);
@@ -80,7 +81,7 @@ const EmployeeInput = ({ user, onLogout }) => {
 
   const fetchEmployeeData = async (deptData = departments) => {
     try {
-      const response = await axios.get(`/api/employees/single/${id}`);
+      const response = await axios.get(`${API_URL}/api/employees/single/${id}`);
       const employee = response.data;
       
       // Get division ID from department using the provided department data
@@ -120,10 +121,10 @@ const EmployeeInput = ({ user, onLogout }) => {
       };
       
       if (isEditMode) {
-        await axios.put(`/api/employees/${id}`, submitData);
+        await axios.put(`${API_URL}/api/employees/${id}`, submitData);
         showModal('success', 'บันทึกข้อมูลพนักงานเรียบร้อยแล้ว');
       } else {
-        await axios.post('/api/employees', submitData);
+        await axios.post(`${API_URL}/api/employees`, submitData);
         showModal('success', 'เพิ่มพนักงานเรียบร้อยแล้ว');
       }
     } catch (error) {

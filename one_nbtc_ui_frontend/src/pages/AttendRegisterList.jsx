@@ -8,6 +8,7 @@ import { formatDateTime } from '../utils/datetime_display_config';
 import { exportToExcel } from '../utils/excelExport';
 
 const AttendRegisterList = ({ user, onLogout }) => {
+  const API_URL = import.meta.env.VITE_API_URL || '';
   const [registers, setRegisters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
@@ -25,7 +26,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
         limit: 10
       });
       
-      const response = await axios.get(`/api/registers?${params}`);
+      const response = await axios.get(`${API_URL}/api/registers?${params}`);
       setRegisters(response.data.registers || []);
       setTotalPages(response.data.totalPages);
       setTotalRegisters(response.data.total);
@@ -57,7 +58,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
   };
 
   const handleAddRegister = () => {
-    navigate('/attendance/edit');
+    navigate(`/attendance/edit`);
   };
 
   const handleDelete = (registerId) => {
@@ -68,7 +69,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
     if (!modal.registerId) return;
     
     try {
-      await axios.delete(`/api/registers/${modal.registerId}`);
+      await axios.delete(`${API_URL}/api/registers/${modal.registerId}`);
       fetchRegisters(currentPage);
       showModal('success', 'ลบการลงทะเบียนเรียบร้อยแล้ว');
     } catch (error) {
@@ -85,7 +86,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
   const handleExportExcel = async () => {
     setExportLoading(true);
     try {
-      const response = await axios.get('/api/registers/export-data');
+      const response = await axios.get(`${API_URL}/api/registers/export-data`);
       
       if (response.data.success) {
         exportToExcel(response.data.registers, response.data.unregisteredEmployees);

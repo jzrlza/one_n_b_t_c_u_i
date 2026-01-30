@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Login = ({ onLogin }) => {
+  const API_URL = import.meta.env.VITE_API_URL || '';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     
     try {
-      const response = await axios.post('/api/auth/login', {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         username,
         password
       });
@@ -43,7 +44,7 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     
     try {
-      const response = await axios.post('/api/auth/verify-2fa', {
+      const response = await axios.post(`${API_URL}/api/auth/verify-2fa`, {
         userId,
         code
       });
@@ -60,7 +61,7 @@ const Login = ({ onLogin }) => {
   const setup2FA = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/setup-2fa', {
+      const response = await axios.post(`${API_URL}/api/auth/setup-2fa`, {
         userId
       });
       
