@@ -54,13 +54,15 @@ router.get('/', async (req, res) => {
     const [countResult] = await connection.execute(countQuery, queryParams);
     
     await connection.end();
+
+    const totalPages = Math.ceil(countResult[0].total / limit);
     
     res.json({
       employees: rows,
       total: countResult[0].total,
-      page: parseInt(page),
+      page: totalPages > 0 ? parseInt(page) : 0,
       limit: parseInt(limit),
-      totalPages: Math.ceil(countResult[0].total / limit)
+      totalPages: totalPages
     });
   } catch (error) {
     console.log('Database error:', error.message);
@@ -205,164 +207,419 @@ router.delete('/:id/force', async (req, res) => {
   }
 });
 
-// POST test Excel import (console.log only)
+// ==================== REUSABLE IMPORT FUNCTIONS ====================
+
+/**
+ * Find the header row and map column indices based on content
+ */
+const detectColumnIndices = (excelData) => {
+  // Find the header row that contains "ลำดับ" in the first column
+  let headerRowIndex = -1;
+  let headerRow = null;
+  
+  for (let i = 0; i < excelData.length; i++) {
+    const row = excelData[i];
+    if (!row || row.length === 0) continue;
+    
+    const firstCell = row[0]?.toString().trim();
+    if (firstCell === "ลำดับ") {
+      headerRowIndex = i;
+      headerRow = row;
+      break;
+    }
+  }
+  
+  if (headerRowIndex === -1) {
+    throw new Error('Header row with "ลำดับ" not found in Excel file');
+  }
+  
+  console.log(`Found header row at index: ${headerRowIndex}`);
+  
+  // Find column indices based on header content
+  const columnMap = {
+    seqIndex: 0, // "ลำดับ" column is always index 0
+    empNameIndex: null,
+    positionIndex: null,
+    divisionIndex: null,
+    deptIndex: null
+  };
+  
+  // Scan through header row to find column positions
+  for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+    const cellValue = headerRow[colIndex]?.toString().trim();
+    if (!cellValue) continue;
+    
+    const lowerValue = cellValue.toLowerCase();
+    if (lowerValue.startsWith("ชื่อ")) {
+      columnMap.empNameIndex = colIndex;
+    }
+    if (lowerValue.startsWith("ตำแหน่ง")) {
+      columnMap.positionIndex = colIndex;
+    }
+    if (lowerValue.startsWith("สายงาน")) {
+      columnMap.divisionIndex = colIndex;
+    }
+    if (lowerValue.startsWith("สำนัก") || lowerValue.startsWith("สังกัด")) {
+      columnMap.deptIndex = colIndex;
+    }
+  }
+  
+  // Validate that all required columns were found
+  const missingColumns = [];
+  if (columnMap.empNameIndex === null) missingColumns.push('"ชื่อ"');
+  if (columnMap.positionIndex === null) missingColumns.push('"ตำแหน่ง"');
+  if (columnMap.divisionIndex === null) missingColumns.push('"สายงาน"');
+  if (columnMap.deptIndex === null) missingColumns.push('"สำนัก"');
+  
+  if (missingColumns.length > 0) {
+    throw new Error(`Missing required columns in header row: ${missingColumns.join(', ')}`);
+  }
+  
+  console.log('Detected column indices:', columnMap);
+  return {
+    headerRowIndex,
+    columnMap,
+    dataStartIndex: headerRowIndex + 1 // Data starts right after header
+  };
+};
+
+/**
+ * Safely extract cell value
+ */
+const getCellValue = (cell) => {
+  if (cell == null || cell === '') {
+    return '';
+  }
+  return String(cell).trim();
+};
+
+/**
+ * Parse and validate Excel row data with auto-add missing data
+ */
+const parseExcelRow = async (row, rowNumber, divisions, departments, positions, columnMap, connection, testing = false) => {
+  // Check if row is empty
+  if (!row || row.length === 0 || row.every(cell => cell == null || cell === '')) {
+    return { skipped: true, reason: 'Empty row' };
+  }
+  
+  // Safely get column indices
+  const divisionIndex = columnMap?.divisionIndex ?? -1;
+  const deptIndex = columnMap?.deptIndex ?? -1;
+  const empNameIndex = columnMap?.empNameIndex ?? -1;
+  const positionIndex = columnMap?.positionIndex ?? -1;
+  
+  // Extract values
+  const divisionStr = divisionIndex >= 0 && row[divisionIndex] != null 
+    ? getCellValue(row[divisionIndex]) 
+    : '';
+  
+  const deptStr = deptIndex >= 0 && row[deptIndex] != null 
+    ? getCellValue(row[deptIndex]) 
+    : '';
+  
+  const empName = empNameIndex >= 0 && row[empNameIndex] != null 
+    ? getCellValue(row[empNameIndex]) 
+    : '';
+  
+  const positionStr = positionIndex >= 0 && row[positionIndex] != null 
+    ? getCellValue(row[positionIndex]) 
+    : '';
+  
+  // Validate required fields
+  const missingFields = [];
+  if (!empName) missingFields.push('Employee name');
+  if (!divisionStr) missingFields.push('Division');
+  if (!deptStr) missingFields.push('Department');
+  if (!positionStr) missingFields.push('Position');
+  
+  if (missingFields.length > 0) {
+    return { 
+      error: `Row ${rowNumber}: Missing required fields: ${missingFields.join(', ')}` 
+    };
+  }
+  
+  // Find or add division
+  let division = divisions.find(div => 
+    div.div_name.toLowerCase() === divisionStr.toLowerCase()
+  );
+  
+  // Auto-add missing division
+  if (!division) {
+    if (!testing) {
+      const [result] = await connection.execute(
+        'INSERT INTO division (div_name) VALUES (?)',
+        [divisionStr]
+      );
+      division = { id: result.insertId, div_name: divisionStr };
+      divisions.push(division);
+      console.log(`Row ${rowNumber}: Added new division: ${divisionStr}`);
+    } else {
+      return { 
+        error: `Row ${rowNumber}: | ไม่พบสายงานชื่อ "${divisionStr}" |` 
+      };
+    }
+  }
+  
+  // Find or add department
+  let department = departments.find(dept => 
+    dept.dept_name.toLowerCase() === deptStr.toLowerCase() && 
+    dept.div_id == division.id
+  );
+  
+  // Auto-add missing department
+  if (!department) {
+    if (!testing) {
+      const [result] = await connection.execute(
+        'INSERT INTO dept (dept_name, div_id) VALUES (?, ?)',
+        [deptStr, division.id]
+      );
+      department = { id: result.insertId, dept_name: deptStr, div_id: division.id };
+      departments.push(department);
+      console.log(`Row ${rowNumber}: Added new department: ${deptStr} in division: ${divisionStr}`);
+    } else {
+      return { 
+        error: `Row ${rowNumber}: | ไม่พบสังกัดชื่อ "${deptStr}" ในสายงาน "${divisionStr}" |` 
+      };
+    }
+  }
+  
+  // Find or add position - escape table name with backticks
+  let position = positions.find(pos => 
+    pos.position_name.toLowerCase() === positionStr.toLowerCase()
+  );
+  
+  // Auto-add missing position
+  if (!position) {
+    if (!testing) {
+      const [result] = await connection.execute(
+        'INSERT INTO `position` (position_name) VALUES (?)',
+        [positionStr]
+      );
+      position = { id: result.insertId, position_name: positionStr };
+      positions.push(position);
+      console.log(`Row ${rowNumber}: Added new position: ${positionStr}`);
+    } else {
+      return { 
+        error: `Row ${rowNumber}: | ไม่พบตำแหน่งชื่อ "${positionStr}" |` 
+      };
+    }
+  }
+  
+  return {
+    success: true,
+    data: {
+      emp_name: empName,
+      division_id: division.id,
+      division_name: division.div_name,
+      dept_id: department.id,
+      dept_name: department.dept_name,
+      position_id: position.id,
+      position_name: position.position_name,
+      rowNumber
+    }
+  };
+};
+
+/**
+ * Check if employee details need to be updated
+ */
+const needsUpdate = (existingEmployee, newData) => {
+  return (
+    existingEmployee.position_id != newData.position_id ||
+    existingEmployee.dept_id != newData.dept_id ||
+    existingEmployee.div_id != newData.div_id
+  );
+};
+
+/**
+ * Process Excel data rows with auto-add missing data and update existing employees
+ */
+const processExcelImport = async (excelData, connection, testing = false) => {
+  // Load existing data
+  const [divisions, departments, positions] = await Promise.all([
+    connection.execute('SELECT * FROM division').then(([rows]) => rows),
+    connection.execute('SELECT * FROM dept').then(([rows]) => rows),
+    connection.execute('SELECT * FROM `position`').then(([rows]) => rows)
+  ]);
+  
+  const savedEmployees = [];
+  const updatedEmployees = [];
+  const errors = [];
+
+  try {
+    // Detect column indices
+    const { headerRowIndex, columnMap, dataStartIndex } = detectColumnIndices(excelData);
+    
+    // Get data rows
+    const dataRows = excelData.slice(dataStartIndex);
+    
+    console.log(`Processing ${dataRows.length} rows, Testing: ${testing}`);
+    
+    for (let index = 0; index < dataRows.length; index++) {
+      const row = dataRows[index];
+      const rowNumber = dataStartIndex + index + 1;
+      
+      // Parse and validate row with auto-add
+      const validation = await parseExcelRow(
+        row, rowNumber, divisions, departments, positions, 
+        columnMap, connection, testing
+      );
+      
+      if (validation.skipped) {
+        continue;
+      }
+
+      if (validation.error) {
+        errors.push(validation.error);
+        continue;
+      }
+      
+      const { emp_name: empName, dept_id, position_id } = validation.data;
+      
+      try {
+        // Check for existing employee
+        const [existingEmployees] = await connection.execute(
+          'SELECT id, position_id, dept_id FROM employee WHERE emp_name = ? AND is_deleted = 0',
+          [empName]
+        );
+        
+        if (existingEmployees.length > 0) {
+          const existingEmployee = existingEmployees[0];
+          
+          // Check if employee needs update
+          if (needsUpdate(existingEmployee, validation.data)) {
+            if (!testing) {
+              // Update existing employee
+              await connection.execute(
+                'UPDATE employee SET position_id = ?, dept_id = ? WHERE id = ?',
+                [position_id, dept_id, existingEmployee.id]
+              );
+              
+              const updatedEmployee = {
+                ...validation.data,
+                id: existingEmployee.id,
+                previous_position_id: existingEmployee.position_id,
+                previous_dept_id: existingEmployee.dept_id,
+                status: 'UPDATED',
+                message: `Employee "${empName}" updated with new position/department`
+              };
+              
+              updatedEmployees.push(updatedEmployee);
+              console.log(`Row ${rowNumber}: Employee "${empName}" updated`);
+            } else {
+              // In testing mode, just show what would be updated
+              const testUpdate = {
+                ...validation.data,
+                id: existingEmployee.id,
+                previous_position_id: existingEmployee.position_id,
+                previous_dept_id: existingEmployee.dept_id,
+                status: 'WOULD_UPDATE',
+                message: `Employee "${empName}" would be updated with new position/department`
+              };
+              updatedEmployees.push(testUpdate);
+            }
+          } else {
+            // Employee exists but no changes needed
+            const unchangedEmployee = {
+              ...validation.data,
+              id: existingEmployee.id,
+              status: 'UNCHANGED',
+              message: `Employee "${empName}" already exists with same details`
+            };
+            savedEmployees.push(unchangedEmployee);
+            console.log(`Row ${rowNumber}: Employee "${empName}" already exists, no changes needed`);
+          }
+          
+        } else {
+          // Insert new employee if not testing
+          if (!testing) {
+            const [insertResult] = await connection.execute(
+              'INSERT INTO employee (emp_name, position_id, dept_id, is_register) VALUES (?, ?, ?, 0)',
+              [empName, position_id, dept_id]
+            );
+            
+            const savedEmployee = {
+              ...validation.data,
+              id: insertResult.insertId,
+              status: 'CREATED'
+            };
+            
+            savedEmployees.push(savedEmployee);
+            console.log(`Row ${rowNumber}: New employee "${empName}" created`);
+          } else {
+            // In testing mode, return validation result
+            const testEmployee = {
+              ...validation.data,
+              status: 'WOULD_CREATE'
+            };
+            savedEmployees.push(testEmployee);
+          }
+        }
+        
+      } catch (dbError) {
+        errors.push(`Row ${rowNumber}: Database error - ${dbError.message}`);
+      }
+    }
+    
+    return {
+      saved: savedEmployees,
+      updated: updatedEmployees,
+      errors,
+      totalRows: dataRows.length,
+      createdCount: savedEmployees.filter(e => e.status === 'CREATED' || e.status === 'WOULD_CREATE').length,
+      updatedCount: updatedEmployees.filter(e => e.status === 'UPDATED' || e.status === 'WOULD_UPDATE').length,
+      unchangedCount: savedEmployees.filter(e => e.status === 'UNCHANGED').length,
+      errorCount: errors.length,
+      testingMode: testing
+    };
+    
+  } catch (detectionError) {
+    console.log('Error:', detectionError.message);
+    return {
+      saved: [],
+      updated: [],
+      errors: [detectionError.message],
+      totalRows: 0,
+      createdCount: 0,
+      updatedCount: 0,
+      unchangedCount: 0,
+      errorCount: 1,
+      testingMode: testing
+    };
+  }
+};
+
+// ==================== EXCEL IMPORT ROUTES ====================
+
+// POST test Excel import (with auto-add simulation)
 router.post('/test-import', async (req, res) => {
+  console.log('=== EXCEL IMPORT TEST START ===');
+  
+  const connection = await getConnection();
+  
   try {
     const { excelData } = req.body;
-    
-    console.log('=== EXCEL IMPORT TEST START ===');
-    console.log('Raw Excel Data Received:', excelData);
+    console.log('Raw Excel Data Received (first 5 rows):', excelData?.slice(0, 5));
     
     if (!excelData || !Array.isArray(excelData)) {
-      console.log('ERROR: Invalid Excel data format');
       return res.json({ success: false, error: 'Invalid Excel data format' });
     }
     
-    // Get all enums for matching
-    const connection = await getConnection();
-    const [divisions] = await connection.execute('SELECT * FROM division');
-    const [departments] = await connection.execute('SELECT * FROM dept');
-    const [positions] = await connection.execute('SELECT * FROM position');
-    await connection.end();
+    // In test mode (testing = true), it will show what would be added/updated
+    const result = await processExcelImport(excelData, connection, true);
     
-    console.log('Available Divisions:', divisions);
-    console.log('Available Departments:', departments);
-    console.log('Available Positions:', positions);
-    
-    const results = [];
-    const errors = [];
-    
-    // Skip first row (header)
-    const dataRows = excelData.slice(1);
-    
-    dataRows.forEach((row, index) => {
-      const rowNumber = index + 2; // +2 for header row and 0-based index
-      
-      try {
-        // Skip empty rows
-        if (!row || row.length === 0 || row.every(cell => !cell)) {
-          console.log(`Row ${rowNumber}: Skipping empty row`);
-          return;
-        }
-        
-        const divisionStr = row[1]?.toString().trim();
-        const deptStr = row[2]?.toString().trim();
-        const empName = row[3]?.toString().trim();
-        const positionStr = row[4]?.toString().trim();
-        
-        console.log(`\n--- Row ${rowNumber} Processing ---`);
-        console.log('Raw Data:', { divisionStr, deptStr, empName, positionStr });
-        
-        // Validate required fields
-        if (!empName) {
-          const error = `Row ${rowNumber}: Employee name is required`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        if (!divisionStr) {
-          const error = `Row ${rowNumber}: Division is required`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        if (!deptStr) {
-          const error = `Row ${rowNumber}: Department is required`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        if (!positionStr) {
-          const error = `Row ${rowNumber}: Position is required`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        // Find division ID
-        const division = divisions.find(div => 
-          div.div_name.toLowerCase() === divisionStr.toLowerCase()
-        );
-        
-        if (!division) {
-          const error = `Row ${rowNumber}: Division "${divisionStr}" not found. Available: ${divisions.map(d => d.div_name).join(', ')}`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        console.log(`Division Match: "${divisionStr}" -> ID ${division.id}`);
-        
-        // Find department ID (must belong to the found division)
-        const department = departments.find(dept => 
-          dept.dept_name.toLowerCase() === deptStr.toLowerCase() && 
-          dept.div_id == division.id
-        );
-        
-        if (!department) {
-          const availableDepts = departments.filter(d => d.div_id == division.id).map(d => d.dept_name);
-          const error = `Row ${rowNumber}: Department "${deptStr}" not found in division "${divisionStr}". Available in this division: ${availableDepts.join(', ')}`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        console.log(`Department Match: "${deptStr}" -> ID ${department.id}`);
-        
-        // Find position ID
-        const position = positions.find(pos => 
-          pos.position_name.toLowerCase() === positionStr.toLowerCase()
-        );
-        
-        if (!position) {
-          const error = `Row ${rowNumber}: Position "${positionStr}" not found. Available: ${positions.map(p => p.position_name).join(', ')}`;
-          console.log('ERROR:', error);
-          errors.push(error);
-          return;
-        }
-        
-        console.log(`Position Match: "${positionStr}" -> ID ${position.id}`);
-        
-        const result = {
-          emp_name: empName,
-          division_id: division.id,
-          division_name: division.div_name,
-          dept_id: department.id,
-          dept_name: department.dept_name,
-          position_id: position.id,
-          position_name: position.position_name,
-          rowNumber,
-          status: 'VALID'
-        };
-        
-        console.log('SUCCESS: Row processed successfully', result);
-        results.push(result);
-        
-      } catch (error) {
-        const errorMsg = `Row ${rowNumber}: ${error.message}`;
-        console.log('EXCEPTION:', errorMsg);
-        errors.push(errorMsg);
-      }
-    });
-    
-    console.log('\n=== EXCEL IMPORT TEST SUMMARY ===');
-    console.log('Total Rows Processed:', dataRows.length);
-    console.log('Successful Rows:', results.length);
-    console.log('Error Rows:', errors.length);
-    console.log('Results:', results);
-    console.log('Errors:', errors);
+    console.log('=== EXCEL IMPORT TEST SUMMARY ===');
+    console.log('Total Rows Processed:', result.totalRows);
+    console.log('Would Create:', result.createdCount);
+    console.log('Would Update:', result.updatedCount);
+    console.log('Unchanged:', result.unchangedCount);
+    console.log('Error Rows:', result.errorCount);
     console.log('=== EXCEL IMPORT TEST END ===\n');
     
     res.json({
       success: true,
-      data: results,
-      errors: errors,
-      totalRows: dataRows.length,
-      validRows: results.length,
-      errorRows: errors.length
+      ...result,
+      message: 'This is a test. No data was actually saved. Shows what would be created/updated.'
     });
     
   } catch (error) {
@@ -371,159 +628,221 @@ router.post('/test-import', async (req, res) => {
       success: false, 
       error: error.message 
     });
+  } finally {
+    await connection.end();
   }
 });
 
-// POST real Excel import (save to database)
+// POST real Excel import (save to database with auto-add)
 router.post('/import', async (req, res) => {
+  console.log('=== EXCEL IMPORT START (SAVING TO DATABASE WITH AUTO-ADD) ===');
+  
   const connection = await getConnection();
   
   try {
-    await connection.beginTransaction();
-    
     const { excelData } = req.body;
-    
-    console.log('=== EXCEL IMPORT START (SAVING TO DATABASE) ===');
     
     if (!excelData || !Array.isArray(excelData)) {
       throw new Error('Invalid Excel data format');
     }
     
-    // Get all enums for matching
-    const [divisions] = await connection.execute('SELECT * FROM division');
-    const [departments] = await connection.execute('SELECT * FROM dept');
-    const [positions] = await connection.execute('SELECT * FROM position');
-    
-    const results = [];
-    const errors = [];
-    const savedEmployees = [];
-    
-    // Skip first row (header)
-    const dataRows = excelData.slice(1);
-    
-    for (let index = 0; index < dataRows.length; index++) {
-      const row = dataRows[index];
-      const rowNumber = index + 2;
-      
-      try {
-        // Skip empty rows
-        if (!row || row.length === 0 || row.every(cell => !cell)) {
-          console.log(`Row ${rowNumber}: Skipping empty row`);
-          continue;
-        }
-        
-        const divisionStr = row[1]?.toString().trim();
-        const deptStr = row[2]?.toString().trim();
-        const empName = row[3]?.toString().trim();
-        const positionStr = row[4]?.toString().trim();
-        
-        // Validate required fields
-        if (!empName) {
-          errors.push(`Row ${rowNumber}: Employee name is required`);
-          continue;
-        }
-        
-        if (!divisionStr) {
-          errors.push(`Row ${rowNumber}: Division is required`);
-          continue;
-        }
-        
-        if (!deptStr) {
-          errors.push(`Row ${rowNumber}: Department is required`);
-          continue;
-        }
-        
-        if (!positionStr) {
-          errors.push(`Row ${rowNumber}: Position is required`);
-          continue;
-        }
-        
-        // Find division ID
-        const division = divisions.find(div => 
-          div.div_name.toLowerCase() === divisionStr.toLowerCase()
-        );
-        
-        if (!division) {
-          errors.push(`Row ${rowNumber}: Division "${divisionStr}" not found`);
-          continue;
-        }
-        
-        // Find department ID (must belong to the found division)
-        const department = departments.find(dept => 
-          dept.dept_name.toLowerCase() === deptStr.toLowerCase() && 
-          dept.div_id == division.id
-        );
-        
-        if (!department) {
-          errors.push(`Row ${rowNumber}: Department "${deptStr}" not found in division "${divisionStr}"`);
-          continue;
-        }
-        
-        // Find position ID
-        const position = positions.find(pos => 
-          pos.position_name.toLowerCase() === positionStr.toLowerCase()
-        );
-        
-        if (!position) {
-          errors.push(`Row ${rowNumber}: Position "${positionStr}" not found`);
-          continue;
-        }
-        
-        // Check if employee already exists
-        const [existingEmployees] = await connection.execute(
-          'SELECT id FROM employee WHERE emp_name = ? AND is_deleted = 0',
-          [empName]
-        );
-        
-        if (existingEmployees.length > 0) {
-          errors.push(`Row ${rowNumber}: Employee "${empName}" already exists`);
-          continue;
-        }
-        
-        // Insert employee
-        const [insertResult] = await connection.execute(
-          'INSERT INTO employee (emp_name, position_id, dept_id, is_register) VALUES (?, ?, ?, 0)',
-          [empName, position.id, department.id]
-        );
-        
-        const result = {
-          emp_name: empName,
-          division_name: division.div_name,
-          dept_name: department.dept_name,
-          position_name: position.position_name,
-          rowNumber,
-          id: insertResult.insertId,
-          status: 'SAVED'
-        };
-        
-        console.log(`Row ${rowNumber}: Employee saved successfully`, result);
-        results.push(result);
-        savedEmployees.push(result);
-        
-      } catch (error) {
-        errors.push(`Row ${rowNumber}: ${error.message}`);
-      }
-    }
+    await connection.beginTransaction();
+    const result = await processExcelImport(excelData, connection, false); // testing = false
     
     await connection.commit();
     
     console.log('=== EXCEL IMPORT COMPLETE ===');
-    console.log('Total Rows Processed:', dataRows.length);
-    console.log('Successfully Saved:', savedEmployees.length);
-    console.log('Errors:', errors.length);
+    console.log('Total Rows Processed:', result.totalRows);
+    console.log('New Employees Created:', result.createdCount);
+    console.log('Employees Updated:', result.updatedCount);
+    console.log('Employees Unchanged:', result.unchangedCount);
+    console.log('Errors:', result.errorCount);
+    console.log('=== EXCEL IMPORT END ===\n');
     
     res.json({
       success: true,
-      saved: savedEmployees,
-      errors: errors,
-      totalRows: dataRows.length,
-      savedCount: savedEmployees.length,
-      errorCount: errors.length
+      ...result,
+      message: 'Import completed. Existing employees were updated if their details differed.'
     });
     
   } catch (error) {
     await connection.rollback();
     console.log('IMPORT ERROR:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  } finally {
+    await connection.end();
+  }
+});
+
+// POST batch import with auto-add and updates
+router.post('/import-batch', async (req, res) => {
+  const { excelData, batchSize = 100 } = req.body;
+  
+  if (!excelData || !Array.isArray(excelData)) {
+    return res.status(400).json({ success: false, error: 'Invalid Excel data format' });
+  }
+  
+  console.log(`Starting batch import with batch size: ${batchSize}`);
+  
+  const connection = await getConnection();
+  const results = { 
+    saved: [], 
+    updated: [],
+    errors: [], 
+    batches: []
+  };
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Detect column indices once for the entire file
+    const { headerRowIndex, columnMap, dataStartIndex } = detectColumnIndices(excelData);
+    
+    // Get all data rows
+    const allDataRows = excelData.slice(dataStartIndex);
+    const totalBatches = Math.ceil(allDataRows.length / batchSize);
+    
+    // Load existing data once for the entire batch process
+    const [divisions, departments, positions] = await Promise.all([
+      connection.execute('SELECT * FROM division').then(([rows]) => rows),
+      connection.execute('SELECT * FROM dept').then(([rows]) => rows),
+      connection.execute('SELECT * FROM `position`').then(([rows]) => rows)
+    ]);
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const start = batchIndex * batchSize;
+      const end = start + batchSize;
+      const batchRows = allDataRows.slice(start, end);
+      
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (rows ${start + 1} to ${Math.min(end, allDataRows.length)})`);
+      
+      const batchSaved = [];
+      const batchUpdated = [];
+      const batchErrors = [];
+      
+      for (let rowIndex = 0; rowIndex < batchRows.length; rowIndex++) {
+        const row = batchRows[rowIndex];
+        const globalRowIndex = start + rowIndex;
+        const rowNumber = dataStartIndex + globalRowIndex + 1;
+        
+        try {
+          // Parse and validate row with auto-add
+          const validation = await parseExcelRow(
+            row, rowNumber, divisions, departments, positions, 
+            columnMap, connection, false // testing = false for real import
+          );
+          
+          if (validation.skipped) {
+            continue;
+          }
+
+          if (validation.error) {
+            batchErrors.push(validation.error);
+            continue;
+          }
+          
+          const { emp_name: empName, dept_id, position_id } = validation.data;
+          
+          // Check for existing employee
+          const [existingEmployees] = await connection.execute(
+            'SELECT id, position_id, dept_id FROM employee WHERE emp_name = ? AND is_deleted = 0',
+            [empName]
+          );
+          
+          if (existingEmployees.length > 0) {
+            const existingEmployee = existingEmployees[0];
+            
+            // Check if employee needs update
+            if (needsUpdate(existingEmployee, validation.data)) {
+              // Update existing employee
+              await connection.execute(
+                'UPDATE employee SET position_id = ?, dept_id = ? WHERE id = ?',
+                [position_id, dept_id, existingEmployee.id]
+              );
+              
+              const updatedEmployee = {
+                ...validation.data,
+                id: existingEmployee.id,
+                previous_position_id: existingEmployee.position_id,
+                previous_dept_id: existingEmployee.dept_id,
+                status: 'UPDATED',
+                message: `Employee "${empName}" updated with new position/department`
+              };
+              
+              batchUpdated.push(updatedEmployee);
+            } else {
+              // Employee exists but no changes needed
+              const unchangedEmployee = {
+                ...validation.data,
+                id: existingEmployee.id,
+                status: 'UNCHANGED',
+                message: `Employee "${empName}" already exists with same details`
+              };
+              batchSaved.push(unchangedEmployee);
+            }
+            
+          } else {
+            // Insert new employee
+            const [insertResult] = await connection.execute(
+              'INSERT INTO employee (emp_name, position_id, dept_id, is_register) VALUES (?, ?, ?, 0)',
+              [empName, position_id, dept_id]
+            );
+            
+            const savedEmployee = {
+              ...validation.data,
+              id: insertResult.insertId,
+              status: 'CREATED'
+            };
+            
+            batchSaved.push(savedEmployee);
+          }
+          
+        } catch (dbError) {
+          batchErrors.push(`Row ${rowNumber}: Database error - ${dbError.message}`);
+        }
+      }
+      
+      results.saved.push(...batchSaved);
+      results.updated.push(...batchUpdated);
+      results.errors.push(...batchErrors);
+      results.batches.push({
+        batch: batchIndex + 1,
+        startRow: start + 1,
+        endRow: Math.min(end, allDataRows.length),
+        saved: batchSaved.length,
+        updated: batchUpdated.length,
+        errors: batchErrors.length
+      });
+    }
+    
+    await connection.commit();
+    
+    console.log('=== BATCH IMPORT COMPLETE ===');
+    console.log('Total Rows Processed:', allDataRows.length);
+    console.log('Total Saved:', results.saved.length);
+    console.log('Total Updated:', results.updated.length);
+    console.log('Total Errors:', results.errors.length);
+    console.log('Number of Batches:', results.batches.length);
+    
+    res.json({
+      success: true,
+      totalRows: allDataRows.length,
+      totalSaved: results.saved.length,
+      totalUpdated: results.updated.length,
+      totalErrors: results.errors.length,
+      batches: results.batches,
+      saved: results.saved,
+      updated: results.updated,
+      errors: results.errors,
+      message: 'Batch import completed with auto-add and update functionality.'
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    console.log('BATCH IMPORT ERROR:', error.message);
     res.status(500).json({ 
       success: false, 
       error: error.message 
