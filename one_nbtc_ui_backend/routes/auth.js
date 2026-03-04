@@ -57,6 +57,37 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const connection = await getConnection();
 
+    //now check user authen
+    const [users] = await connection.execute(
+      'SELECT id, username, employee_id, is_2fa_enabled, is_deleted, created_at, type FROM users WHERE username = ? AND is_deleted = 0', 
+      [username]
+    );
+    if (users.length <= 0) {
+      //create and 2fa
+      return res.status(401).json({ success: false, error: 'ขออภัย ไม่พบ Username ในฐานข้อมูล' });
+    }
+    const user = users[0];
+    const isInitialAdmin = parseInt(user.type) <= 0; //init admin, delete after use
+
+    if (isInitialAdmin) {
+      const token = generateJWTToken(user);
+      if (!token) {
+        return res.status(500).json({ error: 'JWT Secret ยังไม่ได้ตั้งค่า' });
+      }
+
+      // Login successful without 2FA
+      res.json({
+        success: true,
+        user: {...user,
+          "code": 200,
+          "CN": "coreadmin",
+          "email": "core"
+        },
+        requires2FA: false,
+        token: token
+      });
+    }
+
     const AD_API_URL = process.env.AD_API_URL;
     const AD_API_KEY = process.env.AD_API_KEY;
 
@@ -109,18 +140,7 @@ router.post('/login', async (req, res) => {
       }
     */
 
-    //now check user authen
-    const [users] = await connection.execute(
-      'SELECT id, username, employee_id, is_2fa_enabled, is_deleted, created_at, type FROM users WHERE username = ? AND is_deleted = 0', 
-      [username]
-    );
-    if (users.length <= 0) {
-      //create and 2fa
-      return res.status(401).json({ success: false, error: 'ขออภัย ไม่พบ Username ในฐานข้อมูล' });
-    }
-      //simply login, if 2fa, setup or use
-    const user = users[0];
-
+    //simply login, if 2fa, setup or use
     if (user.is_2fa_enabled) {
       // 2FA is enabled, require code
       return res.json({ 
