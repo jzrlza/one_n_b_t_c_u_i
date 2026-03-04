@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
+//import bannerImage from '../res/banner.jpg';
 import { registerEnums } from '../utils/enum_config';
 
 const Home = ({ user, onLogout }) => {
@@ -493,11 +494,11 @@ const Home = ({ user, onLogout }) => {
       
       <main className="app-main app-home">
         <section className="health-section">
-          {/*<img className="img-banner" src={bannerImage} 
+          <img className="img-banner" src={""} 
             alt={
               `null image currently`
             } 
-          />*/}
+          />
         </section>
 
         <section className="home-form">

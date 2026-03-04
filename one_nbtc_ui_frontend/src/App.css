@@ -50,7 +50,7 @@
 body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
-    color: #fff; /* MAIN TEXT COLOR */
+    color: #1f029e; /* MAIN TEXT COLOR */
 }
 
 /* =============================================
@@ -91,7 +91,7 @@ body,
 .option h4,
 .option p,
 .confirm-import {
-    color: #fff !important;
+    color: #1f029e;
 }
 
 .error-text, .input-error-message {
@@ -100,14 +100,14 @@ body,
 
 /* Specific text elements */
 p, h1, h2, h3, h4, h5, h6, div, span, label, td, th, li, a:not(button a) {
-    color: #1f029e;
+    color: #1f029e !important;
 }
 
 /* Modal text */
 .modal-content,
 .modal-header,
 .modal-body {
-    color: #1f029e;
+    color: #1f029e !important;
 }
 
 /* Login text */
@@ -122,7 +122,7 @@ p, h1, h2, h3, h4, h5, h6, div, span, label, td, th, li, a:not(button a) {
 
 /* Input placeholder color */
 ::placeholder {
-    color: rgba(31, 2, 158, 0.6);
+    color: rgba(31, 2, 158, 0.6) !important;
 }
 
 /* =============================================
@@ -183,7 +183,7 @@ button *,
     padding: 10px;
     padding: 0.4rem 2rem;
     border-radius: 15px;
-    color: #fff;
+    color: #1f029e;
     margin-bottom: 0.1rem;
     margin-top: 1rem;
 }
@@ -193,7 +193,7 @@ button *,
 
 .img-banner {
     width: 100%;
-    max-width: 50px;
+    max-width: 800px;
     margin-left: auto;
     margin-right: auto;
     height: auto;
@@ -340,7 +340,7 @@ button:disabled {
     display: flex;
     flex-direction: column;
     background: linear-gradient(135deg, #fff 0%, #fff 100%);
-    color: #fff;
+    color: #1f029e;
 }
 
 .app-header {
@@ -352,13 +352,13 @@ button:disabled {
 .app-header h1 {
     font-size: 2.5rem;
     margin-bottom: 0.5rem;
-    color: #fff;
+    color: #1f029e;
 }
 
 .app-header p {
     font-size: 1.2rem;
     opacity: 0.9;
-    color: #fff;
+    color: #1f029e;
 }
 
 .app-main {
@@ -366,16 +366,6 @@ button:disabled {
     padding: 0.4rem;
     margin: 0 auto;
     width: 100%;
-    background: rgba(106,0,0,1);
-}
-
-.app-home {
-    background-image: url("res/BG.png");
-    background-size: cover; /* This is the key property */
-  background-repeat: no-repeat; /* Prevents the image from repeating */
-  background-position: center; /* Centers the image within the container */
-  min-height: 100vh; /* Ensures the body covers the full viewport height */
-  margin: 0;
 }
 
 .loading {
@@ -397,6 +387,7 @@ button:disabled {
    SECTIONS
    ============================================= */
 
+.health-section,
 .users-section,
 .employees-section,
 .form-section,
@@ -407,15 +398,6 @@ button:disabled {
     border-radius: 15px;
     margin-bottom: 0.1rem;
     color: #1f029e;
-}
-
-.health-section {
-    height: 450px;
-}
-@media (max-width: 1385px) {
-  .health-section {
-        height: 570px;
-    }
 }
 
 .users-section {
@@ -477,7 +459,7 @@ button:disabled {
     position: sticky;
     top: 0;
     z-index: 1000;
-    background: rgba(81, 1, 0, 1);
+    background: rgba(255, 255, 255, 1);
     border-bottom: 1px solid rgba(0, 0, 0, 0.4);
     display: flex;
     justify-content: space-between;
@@ -509,7 +491,7 @@ button:disabled {
     position: sticky;
     top: 0;
     z-index: 1000;
-    background: rgba(81, 1, 0, 1);
+    background: rgba(255, 255, 255, 1);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(0, 0, 0, 0.4);
 }
@@ -552,7 +534,7 @@ button:disabled {
 }
 
 .nav-tab {
-    background: rgba(81, 1, 0, 1);
+    background: rgba(255, 255, 255, 1);
     padding: 0.5rem 1rem;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -571,7 +553,7 @@ button:disabled {
 }
 
 .nav-tab.active {
-    background: rgba(81, 1, 0, 1);
+    background: rgba(255, 255, 255, 1);
     color: #1f029e;
 }
 
