@@ -396,6 +396,15 @@ button:disabled {
     color: #fff;
 }
 
+.health-section {
+    height: 450px;
+}
+@media (max-width: 1385px) {
+  .health-section {
+        height: 570px;
+    }
+}
+
 .users-section {
     margin-top: 1rem;
     border: 1px solid rgba(100, 100, 100, 0.7);
