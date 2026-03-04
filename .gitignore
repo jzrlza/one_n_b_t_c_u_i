@@ -5,3 +5,7 @@
 */node_modules/
 */package-lock.json
 */dist/
+/temp_files/
+/real_env_files_temp/
+/backend-logs/
+/backups/
