@@ -333,7 +333,7 @@ router.put('/:id', async (req, res) => {
     }
     
     const [result] = await connection.execute(
-      'UPDATE register SET emp_id = ?, table_number = ?, phone_number = ?, is_attend = ?, take_van_id = ?, van_round_id = ?, take_food = ? WHERE id = ? AND is_deleted = 0',
+      'UPDATE register SET emp_id = ?, phone_number = ?, is_attend = ?, take_van_id = ?, van_round_id = ?, take_food = ? WHERE id = ? AND is_deleted = 0',
       [emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food, id]
     );
     
