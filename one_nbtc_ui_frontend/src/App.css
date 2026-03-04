@@ -99,9 +99,7 @@ body,
 }
 
 /* Specific text elements */
-p, h1, h2, h3, h4, h5, h6, div, span, label, td, th, li, a:not(button a) {
-    color: #1f029e;
-}
+
 
 /* Modal text */
 .modal-content,
@@ -112,12 +110,12 @@ p, h1, h2, h3, h4, h5, h6, div, span, label, td, th, li, a:not(button a) {
 
 /* Login text */
 .login-container h2 {
-    color: #1f029e !important;
+    color: #1f029e;
 }
 
 /* Search suggestions */
 .suggestion-item {
-    color: #1f029e !important;
+    color: #1f029e;
 }
 
 /* Input placeholder color */
@@ -189,6 +187,7 @@ button *,
 }
 .home-form-title {
     font-size: 1.5rem;
+    color: white;
 }
 
 .img-banner {
@@ -406,7 +405,7 @@ button:disabled {
     padding: 0.4rem 2rem;
     border-radius: 15px;
     margin-bottom: 0.1rem;
-    color: #1f029e;
+    color: #fff;
 }
 
 .health-section {
@@ -466,7 +465,7 @@ button:disabled {
 .registers-section h2 {
     margin-bottom: 1rem;
     font-size: 1.5rem;
-    color: #1f029e;
+    color: #fff;
 }
 
 /* =============================================
@@ -557,7 +556,7 @@ button:disabled {
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
-    color: #000;
+    color: #fff;
     border: none;
     font-size: 1rem;
     border-radius: 4px;
@@ -565,14 +564,15 @@ button:disabled {
 }
 
 .nav-tab:hover {
-    opacity: 0.5;
-    background-color: #eee !important;
+    opacity: 1;
+    background-color: #FFF200 !important;
     transform: translateY(-1px);
+    color: #fff;
 }
 
 .nav-tab.active {
     background: rgba(81, 1, 0, 1);
-    color: #1f029e;
+    color: #FFFCB0;
 }
 
 /* User Section */
@@ -608,7 +608,7 @@ button:disabled {
 .hamburger-btn span {
     width: 30px;
     height: 3px;
-    background: #1f029e;
+    background: #fff;
     border-radius: 10px;
     transition: all 0.3s linear;
     transform-origin: 1px;
@@ -633,8 +633,8 @@ button:disabled {
     right: -280px; /* Exactly the width of the menu */
     width: 280px;
     height: 100vh;
-    background: white;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    background: rgba(81, 1, 0, 1);
+    box-shadow: -2px 0 10px rgba(105, 1, 0, 1);
     transition: right 0.3s ease;
     z-index: 1002;
     display: flex;
@@ -655,7 +655,7 @@ button:disabled {
 
 .mobile-user-greeting {
     font-size: 1rem;
-    color: #1f029e;
+    color: #fff;
     font-weight: 500;
 }
 
@@ -664,7 +664,7 @@ button:disabled {
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    color: #666;
+    color: #fff;
     padding: 0.5rem;
     line-height: 1;
     display: flex;
@@ -686,25 +686,25 @@ button:disabled {
 
 .mobile-menu-item {
     padding: 1rem;
-    background: rgba(255, 255, 255, 1);
+    background: rgba(81, 1, 0, 1);
     border: 1px solid #eee;
     text-align: left;
     font-size: 1rem;
     cursor: pointer;
     transition: all 0.3s ease;
     border-radius: 4px;
-    color: #000;
+    color: #fff;
 }
 
 .mobile-menu-item:hover {
-    background-color: #f5f5f5;
+    background-color: rgba(105, 1, 0, 1);
 }
 
 .mobile-menu-item.active {
-    background: rgba(255, 255, 255, 1);
-    color: #1f029e;
+    background: rgba(81, 1, 0, 1);
+    color: #F1FF00;
     font-weight: 500;
-    border-color: #1f029e;
+    border-color: #F1FF00;
 }
 
 .mobile-menu-footer {
@@ -935,14 +935,14 @@ input:focus, select:focus, textarea:focus {
     align-items: center;
     min-height: 100vh;
     padding: 2rem;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(81, 1, 0, 1);
     backdrop-filter: blur(10px);
 }
 
 .login-container h2 {
     margin-bottom: 2rem;
     font-size: 2rem;
-    color: #1f029e;
+    color: #fff;
 }
 
 .login-container form {
@@ -1010,18 +1010,19 @@ input:focus, select:focus, textarea:focus {
     padding: 0.5rem;
     border-radius: 1px;
     font-family: monospace;
-    color: #1f029e;
+    color: #fff;
 }
 
 .instruction {
     margin: 1rem 0;
     font-style: italic;
-    color: #1f029e;
+    color: #fff;
 }
 
 .auth-options {
     max-width: 400px;
     width: 100%;
+    color: white !important;
 }
 
 .setup-prompt {
@@ -1145,11 +1146,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-content {
-    background: white;
+    background: rgba(81, 1, 0, 1) !important;
     border-radius: 8px;
     padding: 0;
     width: 90%;
-    color: #1f029e;
+    color: #fff;
 }
 
 .modal-header {
@@ -1175,6 +1176,7 @@ input:focus, select:focus, textarea:focus {
 
 .modal-body {
     padding: 1rem;
+    color: white;
 }
 
 .modal-actions {
@@ -1216,7 +1218,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .success-list {
-    background: #e8f5e8;
+    background: #000;
     border: 1px solid #c8e6c9;
 }
 
@@ -1224,7 +1226,7 @@ input:focus, select:focus, textarea:focus {
     padding: 0.25rem 0;
     border-bottom: 1px solid #c8e6c9;
     font-size: 0.9rem;
-    color: #1f029e;
+    color: #fff;
 }
 
 .success-item:last-child {
@@ -1234,7 +1236,7 @@ input:focus, select:focus, textarea:focus {
 .more-items {
     padding: 0.5rem 0;
     font-style: italic;
-    color: #1f029e;
+    color: #000;
     text-align: center;
 }
 
@@ -1799,7 +1801,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Highlight matching text */
 .highlight {
-  color: #856404;
+  color: #000170;
 }
 
 /* Suggestions header */
@@ -1887,7 +1889,7 @@ input:focus, select:focus, textarea:focus {
 .checkbox-group {
   margin-bottom: 24px;
   padding: 16px;
-  background-color: #f8f9fa;
+  background-color: #000;
   border-radius: 20px;
   border: 1px solid #e9ecef;
 }
