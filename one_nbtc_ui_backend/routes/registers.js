@@ -1,13 +1,77 @@
 const express = require('express');
 const { getConnection } = require('../config/database');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const SimpleRotatingLogger = require('../SimpleRotatingLogger');
+
+const JWT_SECRET_STR = process.env.JWT_SECRET;
+
+const fs = require('fs');
+const path = require('path');
+const logDir = process.env.LOG_PATH || path.join(__dirname, 'logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+const verifyJWTToken = (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1].replace(/"/g, '');
+
+  if (!token) {
+    return null;
+  }
+  
+  try {
+    // Verify token - if valid, get user info back!
+    const user = jwt.verify(token, JWT_SECRET_STR);
+    return user;
+  } catch (err) {
+    return null;
+  }
+}
+
+const logger = new SimpleRotatingLogger(logDir, 'backend-registers.js-access.log', {
+    maxSize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5,
+    compress: true,
+    level: 'info'//,
+   // consoleOutput: process.env.NODE_ENV !== 'production'
+});
+
+const logFile = (req, user=null) => {
+    //let date_now = new Date().toISOString();
+    //const logEntry = `${date_now} - ${req.method} ${req.url} - ${req.ip} - ${req.get('User-Agent')}\n`;
+    let user_str = user ? user.username : ''
+    // Write to rotating stream instead of direct append
+    logger.info('API Request', {
+        method: req.method,
+        url: req.url,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        user: user_str
+    });
+}
 
 // GET all registers with employee names
 // GET all registers with employee names (alternative approach)
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    logFile(req);
+    const { search, page = 1, limit = 10 } = req.query;
     const connection = await getConnection();
+
+    let whereClause = '';
+    
+    // Build conditions array
+    const conditions = [];
+    
+    if (search) {
+      conditions.push(`e.emp_name LIKE '%${search}%'`);
+    }
+
+    // Add conditions to WHERE clause if any exist
+    if (conditions.length > 0) {
+      whereClause = `AND ${conditions.join(' AND ')}`;
+    }
 
     // Validate and parse parameters
     const pageNum = Math.max(1, parseInt(page));
@@ -21,7 +85,7 @@ router.get('/', async (req, res) => {
         e.emp_name
       FROM register r
       LEFT JOIN employee e ON r.emp_id = e.id
-      WHERE r.is_deleted = 0 AND e.is_deleted = 0
+      WHERE r.is_deleted = 0 AND e.is_deleted = 0 ${whereClause}
       ORDER BY r.sys_datetime DESC
       LIMIT ${limitNum} OFFSET ${offset}
     `;
@@ -38,13 +102,15 @@ router.get('/', async (req, res) => {
     const [countResult] = await connection.execute(countQuery);
     
     await connection.end();
+
+    const totalPages = Math.ceil(countResult[0].total / limitNum);
     
     res.json({
       registers: rows,
       total: countResult[0].total,
-      page: pageNum,
+      page: totalPages > 0 ? pageNum : 0,
       limit: limitNum,
-      totalPages: Math.ceil(countResult[0].total / limitNum)
+      totalPages: totalPages
     });
   } catch (error) {
     console.log('Database error:', error.message);
@@ -54,6 +120,7 @@ router.get('/', async (req, res) => {
 
 router.get('/divisions', async (req, res) => {
   try {
+    logFile(req);
     const connection = await getConnection();
     const [rows] = await connection.execute('SELECT * FROM division ORDER BY div_name');
     await connection.end();
@@ -67,6 +134,7 @@ router.get('/divisions', async (req, res) => {
 // GET departments for dropdown
 router.get('/departments', async (req, res) => {
   try {
+    logFile(req);
     const { div_id } = req.query;
     
     if (!div_id) {
@@ -91,6 +159,7 @@ router.get('/departments', async (req, res) => {
 // GET employees by department ID
 router.get('/employees', async (req, res) => {
   try {
+    logFile(req);
     const { dept_id } = req.query;
     
     if (!dept_id) {
@@ -117,6 +186,7 @@ router.get('/employees', async (req, res) => {
 // GET employee info (division and department) for edit mode
 router.get('/employee-info/:emp_id', async (req, res) => {
   try {
+    logFile(req);
     const { emp_id } = req.params;
     
     const connection = await getConnection();
@@ -160,6 +230,7 @@ router.get('/employee-info/:emp_id', async (req, res) => {
 // GET employees for search
 router.get('/employees/search', async (req, res) => {
   try {
+    logFile(req);
     const { search } = req.query;
     const connection = await getConnection();
     
@@ -183,17 +254,19 @@ router.get('/employees/search', async (req, res) => {
   }
 });
 
+// --PUBLIC-- ****this is used in home public page where no login needed****
 // POST create new register
 router.post('/', async (req, res) => {
   try {
-    const { emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food } = req.body;
+    logFile(req); //ALWAYS PUBLIC
+    const { emp_id, table_number } = req.body;
     
     const connection = await getConnection();
     
     // Check if employee exists and is not deleted
     const [empRows] = await connection.execute(
       'SELECT emp_name FROM employee WHERE id = ? AND is_deleted = 0',
-      [emp_id]
+      [emp_id ? emp_id : null]
     );
     
     if (empRows.length === 0) {
@@ -202,8 +275,8 @@ router.post('/', async (req, res) => {
     }
     
     const [result] = await connection.execute(
-      'INSERT INTO register (emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)',
-      [emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food]
+      'INSERT INTO register (emp_id, table_number, is_deleted) VALUES (?, ?, 0)',
+      [emp_id, table_number]
     );
     
     // Update employee's is_register status
@@ -214,18 +287,26 @@ router.post('/', async (req, res) => {
     
     await connection.end();
     
-    res.json({ id: result.insertId, message: 'Registration created successfully' });
+    res.json({ id: result.insertId, message: 'เพิ่มการลงทะเบียนเรียบร้อย' });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
+// **PROTECTED**
 // PUT update register
 router.put('/:id', async (req, res) => {
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
   try {
     const { id } = req.params;
-    const { emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food } = req.body;
+    const { emp_id, table_number } = req.body;
     
     const connection = await getConnection();
     
@@ -237,7 +318,7 @@ router.put('/:id', async (req, res) => {
     
     if (registerRows.length === 0) {
       await connection.end();
-      return res.status(404).json({ error: 'Register not found' });
+      return res.status(404).json({ error: 'ไม่พบการลงทะเบียน' });
     }
     
     // Check if employee exists and is not deleted
@@ -252,8 +333,8 @@ router.put('/:id', async (req, res) => {
     }
     
     const [result] = await connection.execute(
-      'UPDATE register SET emp_id = ?, phone_number = ?, is_attend = ?, take_van_id = ?, van_round_id = ?, take_food = ? WHERE id = ? AND is_deleted = 0',
-      [emp_id, phone_number, is_attend, take_van_id, van_round_id, take_food, id]
+      'UPDATE register SET emp_id = ?, table_number = ? WHERE id = ? AND is_deleted = 0',
+      [emp_id, table_number, id]
     );
     
     await connection.end();
@@ -262,7 +343,7 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Register not found' });
     }
     
-    res.json({ message: 'Registration updated successfully' });
+    res.json({ message: 'แก้ไขการลงทะเบียนเรียบร้อย' });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
@@ -272,6 +353,7 @@ router.put('/:id', async (req, res) => {
 // GET single register for edit
 router.get('/single/:id', async (req, res) => {
   try {
+    logFile(req);
     const { id } = req.params;
     const connection = await getConnection();
     
@@ -285,7 +367,7 @@ router.get('/single/:id', async (req, res) => {
     await connection.end();
     
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Registration not found' });
+      return res.status(404).json({ error: 'ไม่พบการลงทะเบียน' });
     }
     
     res.json(rows[0]);
@@ -295,9 +377,17 @@ router.get('/single/:id', async (req, res) => {
   }
 });
 
+// **PROTECTED**
 // DELETE register
 // Soft delete register
 router.delete('/:id', async (req, res) => {
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
   try {
     const { id } = req.params;
     
@@ -314,67 +404,91 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Register not found' });
     }
     
-    res.json({ message: 'Registration deleted successfully' });
+    res.json({ message: 'ลบการลงทะเบียนเรียบร้อย' });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET export data for Excel (raw data only)
+// **PROTECTED**
+// GET export data for Excel (most efficient)
 router.get('/export-data', async (req, res) => {
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
+  let connection;
   try {
-    const connection = await getConnection();
+    connection = await getConnection();
     
-    // Get all register data with employee details
+    // Get latest registers with employee details in one query
     const [registers] = await connection.execute(`
       SELECT 
         r.*,
         e.emp_name,
         p.position_name,
         d.dept_name,
-        division_obj.div_name
+        division_obj.div_name,
+        division_obj.id as division_id,
+        d.id as dept_id
       FROM register r
-      LEFT JOIN employee e ON r.emp_id = e.id
+      INNER JOIN employee e ON r.emp_id = e.id
       LEFT JOIN position p ON e.position_id = p.id
       LEFT JOIN dept d ON e.dept_id = d.id
       LEFT JOIN division division_obj ON d.div_id = division_obj.id
-      ORDER BY e.id
+      INNER JOIN (
+        -- Subquery to get latest register for each employee
+        SELECT 
+          emp_id,
+          MAX(id) as latest_id
+        FROM register
+        WHERE is_deleted = 0
+        GROUP BY emp_id
+      ) latest ON r.id = latest.latest_id
+      WHERE r.is_deleted = 0
+      ORDER BY division_obj.id, d.id, e.emp_name
     `);
     
-    // Get all employees to find unregistered ones
-    const [allEmployees] = await connection.execute(`
+    // Get unregistered employees
+    const [unregisteredEmployees] = await connection.execute(`
       SELECT 
         e.id,
         e.emp_name,
         p.position_name,
         d.dept_name,
-        division_obj.div_name
+        division_obj.div_name,
+        division_obj.id as division_id,
+        d.id as dept_id
       FROM employee e
       LEFT JOIN position p ON e.position_id = p.id
       LEFT JOIN dept d ON e.dept_id = d.id
       LEFT JOIN division division_obj ON d.div_id = division_obj.id
       WHERE e.is_deleted = 0
-      ORDER BY e.id
+        AND e.id NOT IN (
+          SELECT DISTINCT emp_id 
+          FROM register 
+          WHERE is_deleted = 0
+        )
+      ORDER BY division_obj.id, d.id, e.emp_name
     `);
-    
-    await connection.end();
-    
-    // Get registered employee IDs
-    const registeredEmpIds = new Set(registers.map(r => r.emp_id));
-    
-    // Find unregistered employees
-    const unregisteredEmployees = allEmployees.filter(emp => !registeredEmpIds.has(emp.id));
     
     res.json({
       success: true,
       registers: registers,
-      unregisteredEmployees: unregisteredEmployees
+      unregisteredEmployees: unregisteredEmployees,
+      count: registers.length,
+      unregisteredCount: unregisteredEmployees.length
     });
     
   } catch (error) {
     console.log('Export error:', error.message);
     res.status(500).json({ error: error.message });
+  } finally {
+    if (connection) await connection.end();
   }
 });
 

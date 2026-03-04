@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import Navbar from '../components/Navbar';
+import NavbarAdmin from '../components/NavbarAdmin';
 import Modal from '../components/Modal';
 
 const EmployeeInput = ({ user, onLogout }) => {
@@ -121,15 +121,26 @@ const EmployeeInput = ({ user, onLogout }) => {
       };
       
       if (isEditMode) {
-        await axios.put(`${API_URL}/api/employees/${id}`, submitData);
+        await axios.put(`${API_URL}/api/employees/${id}`, submitData, {
+        headers: {
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Send token like a password
+        }
+      });
         showModal('success', 'บันทึกข้อมูลพนักงานเรียบร้อยแล้ว');
       } else {
-        await axios.post(`${API_URL}/api/employees`, submitData);
+        await axios.post(`${API_URL}/api/employees`, submitData, {
+        headers: {
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Send token like a password
+        }
+      });
         showModal('success', 'เพิ่มพนักงานเรียบร้อยแล้ว');
       }
     } catch (error) {
       console.error('Error saving employee:', error);
       showModal('error', 'ไม่สามารถบันทึกพนักงานได้: ' + (error.response?.data?.error || error.message));
+      if (error.response?.status == 403) {
+        handleLogout();
+      }
     } finally {
       setLoading(false);
     }
@@ -156,7 +167,7 @@ const EmployeeInput = ({ user, onLogout }) => {
   const handleModalClose = () => {
     closeModal();
     if (modal.type === 'success') {
-      navigate('/');
+      navigate('/employee');
     }
   };
 
@@ -171,17 +182,18 @@ const EmployeeInput = ({ user, onLogout }) => {
 
   return (
     <div className="app">
-      <Navbar user={user} onLogout={handleLogout} />
+      <NavbarAdmin user={user} onLogout={handleLogout} />
       
       <main className="app-main">
-        <section className="form-section">
+        <section className="form-section app-main-form">
           <h2>{isEditMode ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงานใหม่'}</h2>
           
           <form onSubmit={handleSubmit} className="employee-form">
             <div className="form-group">
-              <label>ชื่อ-นามสกุล:</label>
+              <label>ชื่อ-นามสกุล</label>
               <input
                 type="text"
+                className="form-input"
                 name="emp_name"
                 value={formData.emp_name}
                 onChange={handleChange}
@@ -190,9 +202,10 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>ตำแหน่ง:</label>
+              <label>ตำแหน่ง</label>
               <select
                 name="position_id"
+                className="form-input"
                 value={formData.position_id}
                 onChange={handleChange}
                 required
@@ -207,9 +220,10 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>สายงาน:</label>
+              <label>สายงาน</label>
               <select
                 name="div_id"
+                className="form-input"
                 value={formData.div_id}
                 onChange={handleChange}
                 required
@@ -224,9 +238,10 @@ const EmployeeInput = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>สำนัก:</label>
+              <label>สำนัก</label>
               <select
                 name="dept_id"
+                className="form-input"
                 value={formData.dept_id}
                 onChange={handleChange}
                 required
@@ -254,7 +269,7 @@ const EmployeeInput = ({ user, onLogout }) => {
               </button>
               <button 
                 type="button" 
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/employee')}
                 className="cancel-btn"
               >
                 ยกเลิก

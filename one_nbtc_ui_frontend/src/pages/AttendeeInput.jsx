@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import Navbar from '../components/Navbar';
+import NavbarAdmin from '../components/NavbarAdmin';
 import Modal from '../components/Modal';
 import { registerEnums } from '../utils/enum_config';
 
@@ -10,24 +10,27 @@ const AttendeeInput = ({ user, onLogout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!id;
+  const searchRef = useRef(null);
   
   const [formData, setFormData] = useState({
     emp_name: '',
     emp_id: '',
-    phone_number: '',
-    is_attend: '1',
-    take_van_id: '1',
-    van_round_id: '1',
-    take_food: '1'
+    table_number: ''
   });
   
-  // New state for hierarchical selection
+  // State for hierarchical selection
   const [divisions, setDivisions] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [selectedDivision, setSelectedDivision] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState('');
+  
+  // State for search functionality
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [inputError, setInputError] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
@@ -50,6 +53,31 @@ const AttendeeInput = ({ user, onLogout }) => {
     }
   }, [id]);
 
+  // Filter employees whenever search term or employees list changes
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredEmployees([]);
+    } else {
+      const filtered = employees.filter(emp =>
+        emp.emp_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredEmployees(filtered);
+    }
+    setHighlightedIndex(-1);
+  }, [searchTerm, employees]);
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Fetch divisions on component mount
   const fetchDivisions = async () => {
     try {
@@ -68,7 +96,14 @@ const AttendeeInput = ({ user, onLogout }) => {
       setDepartments(response.data);
       setSelectedDepartment('');
       setEmployees([]);
-      setSelectedEmployee('');
+      setFilteredEmployees([]);
+      setFormData(prev => ({
+        ...prev,
+        emp_name: '',
+        emp_id: ''
+      }));
+      setSearchTerm('');
+      setInputError('');
     } catch (error) {
       console.error('Error fetching departments:', error);
       showModal('error', 'ไม่สามารถโหลดข้อมูลสำนักได้');
@@ -79,8 +114,31 @@ const AttendeeInput = ({ user, onLogout }) => {
   const fetchEmployees = async (deptId) => {
     try {
       const response = await axios.get(`${API_URL}/api/registers/employees?dept_id=${deptId}`);
-      setEmployees(response.data);
-      setSelectedEmployee('');
+      const employeesData = response.data;
+      setEmployees(employeesData);
+      setFilteredEmployees([]);
+      
+      // If we're in edit mode and have an emp_id, verify the employee exists in this department
+      if (isEditMode && formData.emp_id) {
+        const selectedEmployee = employeesData.find(emp => emp.id.toString() === formData.emp_id.toString());
+        if (selectedEmployee) {
+          setFormData(prev => ({
+            ...prev,
+            emp_name: selectedEmployee.emp_name,
+            emp_id: selectedEmployee.id.toString()
+          }));
+          setSearchTerm(selectedEmployee.emp_name);
+          setInputError('');
+        }
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          emp_name: '',
+          emp_id: ''
+        }));
+        setSearchTerm('');
+      }
+      setInputError('');
     } catch (error) {
       console.error('Error fetching employees:', error);
       showModal('error', 'ไม่สามารถโหลดข้อมูลพนักงานได้');
@@ -95,11 +153,7 @@ const AttendeeInput = ({ user, onLogout }) => {
       setFormData({
         emp_name: register.emp_name || '',
         emp_id: register.emp_id || '',
-        phone_number: register.phone_number || '',
-        is_attend: register.is_attend?.toString() || '1',
-        take_van_id: register.take_van_id?.toString() || '1',
-        van_round_id: register.van_round_id?.toString() || '1',
-        take_food: register.take_food?.toString() || '1'
+        table_number: register.table_number || ''
       });
 
       // If editing, we need to fetch the employee's division and department
@@ -114,9 +168,18 @@ const AttendeeInput = ({ user, onLogout }) => {
             setSelectedDepartment(department_id?.toString() || '');
             if (department_id) {
               await fetchEmployees(department_id);
+              // Set the search term to the employee name
+              setSearchTerm(register.emp_name);
+              
+              // Important: Set the form data again after employees are loaded
+              // This ensures the employee is properly selected
+              setFormData(prev => ({
+                ...prev,
+                emp_name: register.emp_name,
+                emp_id: register.emp_id
+              }));
             }
           }
-          setSelectedEmployee(register.emp_id.toString());
         } catch (error) {
           console.error('Error fetching employee info:', error);
         }
@@ -133,8 +196,10 @@ const AttendeeInput = ({ user, onLogout }) => {
     const divisionId = e.target.value;
     setSelectedDivision(divisionId);
     setSelectedDepartment('');
-    setSelectedEmployee('');
     setEmployees([]);
+    setFilteredEmployees([]);
+    setSearchTerm('');
+    setInputError('');
     
     if (divisionId) {
       fetchDepartments(divisionId);
@@ -153,12 +218,14 @@ const AttendeeInput = ({ user, onLogout }) => {
   const handleDepartmentChange = (e) => {
     const departmentId = e.target.value;
     setSelectedDepartment(departmentId);
-    setSelectedEmployee('');
+    setSearchTerm('');
+    setInputError('');
     
     if (departmentId) {
       fetchEmployees(departmentId);
     } else {
       setEmployees([]);
+      setFilteredEmployees([]);
     }
 
     // Clear employee selection
@@ -169,34 +236,166 @@ const AttendeeInput = ({ user, onLogout }) => {
     }));
   };
 
-  const handleEmployeeChange = (e) => {
-    const employeeId = e.target.value;
-    setSelectedEmployee(employeeId);
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowSuggestions(true);
+    setInputError('');
     
-    if (employeeId) {
-      const employee = employees.find(emp => emp.id.toString() === employeeId);
-      if (employee) {
-        setFormData(prev => ({
-          ...prev,
-          emp_name: employee.emp_name,
-          emp_id: employee.id.toString()
-        }));
-      }
-    } else {
+    // Clear selected employee when typing
+    if (value !== formData.emp_name) {
       setFormData(prev => ({
         ...prev,
-        emp_name: '',
+        emp_name: value,
         emp_id: ''
       }));
+    }
+
+    // When input becomes empty while focused, show all employees
+    if (value === '' && selectedDepartment) {
+      setFilteredEmployees(employees);
+    }
+  };
+
+  // Handle employee selection from suggestions
+  const handleEmployeeSelect = (employee) => {
+    setFormData(prev => ({
+      ...prev,
+      emp_name: employee.emp_name,
+      emp_id: employee.id.toString()
+    }));
+    setSearchTerm(employee.emp_name);
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
+    setInputError('');
+  };
+
+  // Validate if the entered text matches an employee in the list
+  const validateEmployeeInput = () => {
+    // If already have a valid emp_id and the name matches, no need to validate
+    if (formData.emp_id && formData.emp_name === searchTerm) {
+      return true;
+    }
+
+    // Try to find exact match in employees list
+    const exactMatch = employees.find(emp => 
+      emp.emp_name.toLowerCase() === searchTerm.trim().toLowerCase()
+    );
+
+    if (exactMatch) {
+      // Auto-select the exact match
+      setFormData(prev => ({
+        ...prev,
+        emp_name: exactMatch.emp_name,
+        emp_id: exactMatch.id.toString()
+      }));
+      setSearchTerm(exactMatch.emp_name);
+      setInputError('');
+      return true;
+    }
+
+    // Try to find if the search term matches any employee name (case insensitive)
+    const partialMatches = employees.filter(emp =>
+      emp.emp_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (partialMatches.length === 1) {
+      // If only one match, auto-select it
+      const match = partialMatches[0];
+      setFormData(prev => ({
+        ...prev,
+        emp_name: match.emp_name,
+        emp_id: match.id.toString()
+      }));
+      setSearchTerm(match.emp_name);
+      setInputError('');
+      return true;
+    } else if (partialMatches.length > 1) {
+      // Multiple matches - show error to select from dropdown
+      setInputError('พบพนักงานหลายคน กรุณาเลือกจากรายการ');
+      return false;
+    } else {
+      // No matches found
+      setInputError('ไม่พบพนักงานในสำนัก กรุณาตรวจสอบชื่ออีกครั้ง');
+      return false;
+    }
+  };
+
+  // Handle input blur - validate when user leaves the field
+  const handleInputBlur = () => {
+    // Small delay to allow click on suggestion to register first
+    setTimeout(() => {
+      if (!showSuggestions && searchTerm && !formData.emp_id) {
+        validateEmployeeInput();
+      }
+    }, 200);
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || filteredEmployees.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex(prev => 
+          prev < filteredEmployees.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0) {
+          handleEmployeeSelect(filteredEmployees[highlightedIndex]);
+        } else {
+          // If no item highlighted, try to validate the input
+          validateEmployeeInput();
+          setShowSuggestions(false);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setHighlightedIndex(-1);
+        break;
+      case 'Tab':
+        setShowSuggestions(false);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handle input focus
+  const handleInputFocus = () => {
+    if (selectedDepartment && employees.length > 0) {
+      setShowSuggestions(true);
+
+      if (searchTerm === '') {
+        setFilteredEmployees(employees);
+      }
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate employee selection
+    // Final validation before submit
     if (!formData.emp_id) {
-      showModal('error', 'กรุณาเลือกพนักงาน');
+      // Try to validate one more time
+      const isValid = validateEmployeeInput();
+      if (!isValid) {
+        showModal('error', 'กรุณาเลือกพนักงานจากรายการ หรือตรวจสอบชื่อให้ถูกต้อง');
+        return;
+      }
+    }
+
+    // Double-check that we have a valid emp_id after validation
+    if (!formData.emp_id) {
+      showModal('error', 'กรุณาเลือกพนักงานจากรายการ');
       return;
     }
     
@@ -205,18 +404,15 @@ const AttendeeInput = ({ user, onLogout }) => {
     try {
       const submitData = {
         emp_id: formData.emp_id,
-        phone_number: formData.phone_number,
-        is_attend: parseInt(formData.is_attend),
-        take_van_id: parseInt(formData.take_van_id),
-        // Only include van_round_id if take_van_id is 1 or 2
-        van_round_id: (formData.take_van_id === '1' || formData.take_van_id === '2') 
-          ? parseInt(formData.van_round_id) 
-          : null,
-        take_food: parseInt(formData.take_food)
+        table_number: formData.table_number
       };
       
       if (isEditMode) {
-        await axios.put(`${API_URL}/api/registers/${id}`, submitData);
+        await axios.put(`${API_URL}/api/registers/${id}`, submitData, {
+          headers: {
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+          }
+        });
         showModal('success', 'อัพเดทการลงทะเบียนเรียบร้อยแล้ว');
       } else {
         await axios.post(`${API_URL}/api/registers`, submitData);
@@ -225,6 +421,9 @@ const AttendeeInput = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error saving registration:', error);
       showModal('error', 'ไม่สามารถบันทึกการลงทะเบียนได้: ' + (error.response?.data?.error || error.message));
+      if (error.response?.status === 403) {
+        handleLogout();
+      }
     } finally {
       setLoading(false);
     }
@@ -239,9 +438,6 @@ const AttendeeInput = ({ user, onLogout }) => {
     }));
   };
 
-  // Check if van_round_id should be disabled
-  const isVanRoundDisabled = formData.take_van_id === '3' || formData.take_van_id === '4';
-
   const handleModalClose = () => {
     closeModal();
     if (modal.type === 'success') {
@@ -254,24 +450,37 @@ const AttendeeInput = ({ user, onLogout }) => {
     navigate('/login');
   };
 
+  // Function to highlight matching text in suggestions
+  const highlightMatch = (text, query) => {
+    if (!query) return text;
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, index) => 
+      part.toLowerCase() === query.toLowerCase() ? 
+        <span key={index} className="highlight">{part}</span> : 
+        part
+    );
+  };
+
   if (pageLoading) {
     return <div className="loading">กำลังโหลด...</div>;
   }
 
   return (
     <div className="app">
-      <Navbar user={user} onLogout={handleLogout} />
+      <NavbarAdmin user={user} onLogout={handleLogout} />
       
       <main className="app-main">
-        <section className="form-section">
+        <section className="form-section app-main-form">
           <h2>{isEditMode ? 'แก้ไขการลงทะเบียน' : 'เพิ่มการลงทะเบียนใหม่'}</h2>
           
           <form onSubmit={handleSubmit} className="employee-form">
             {/* Division Selection */}
             <div className="form-group">
-              <label>สายงาน:</label>
+              <label>สายงาน</label>
               <select
                 value={selectedDivision}
+                className="form-input"
                 onChange={handleDivisionChange}
                 required
               >
@@ -286,9 +495,10 @@ const AttendeeInput = ({ user, onLogout }) => {
 
             {/* Department Selection */}
             <div className="form-group">
-              <label>สำนัก:</label>
+              <label>สำนัก</label>
               <select
                 value={selectedDepartment}
+                className="form-input"
                 onChange={handleDepartmentChange}
                 disabled={!selectedDivision}
                 required
@@ -302,107 +512,84 @@ const AttendeeInput = ({ user, onLogout }) => {
               </select>
             </div>
 
-            {/* Employee Selection */}
-            <div className="form-group">
-              <label>ชื่อ-นามสกุล:</label>
-              <select
-                value={selectedEmployee}
-                onChange={handleEmployeeChange}
-                disabled={!selectedDepartment}
-                required
-              >
-                <option value="">เลือกพนักงาน</option>
-                {employees.map(employee => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.emp_name}
-                  </option>
-                ))}
-              </select>
-              {formData.emp_id && (
-                <small className="form-hint">เลือกพนักงานแล้ว: {formData.emp_name} (รหัส: {formData.emp_id})</small>
-              )}
+            {/* Employee Search with Google-like suggestions */}
+            <div className="form-group" ref={searchRef}>
+              <label>ชื่อ-นามสกุล</label>
+              <div className="search-container">
+                <input
+                  type="text"
+                  className={`form-input ${inputError ? 'input-error' : ''}`}
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleKeyDown}
+                  placeholder={selectedDepartment ? "พิมพ์ชื่อเพื่อค้นหา..." : "กรุณาเลือกสำนักก่อน"}
+                  disabled={!selectedDepartment}
+                  autoComplete="off"
+                />
+                
+                {/* Error message */}
+                {inputError && (
+                  <div className="input-error-message">
+                    {inputError}
+                  </div>
+                )}
+                
+                {/* Google-like suggestions dropdown */}
+                {showSuggestions && selectedDepartment && (
+                  <div className="suggestions-dropdown">
+                    {filteredEmployees.length > 0 ? (
+                      <ul className="suggestions-list">
+                        {filteredEmployees.map((employee, index) => (
+                          <li
+                            key={employee.id}
+                            className={`suggestion-item ${index === highlightedIndex ? 'highlighted' : ''}`}
+                            onClick={() => handleEmployeeSelect(employee)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                          >
+                            <div className="employee-name">
+                              {highlightMatch(employee.emp_name, searchTerm)}
+                            </div>
+                            <div className="employee-id">รหัสในฐานข้อมูล: {employee.id}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : searchTerm ? (
+                      <div className="no-suggestions">
+                        <div className="no-results-icon">🔍</div>
+                        <div>ไม่พบพนักงาน "{searchTerm}"</div>
+                        <div className="no-results-hint">ลองค้นหาด้วยชื่ออื่น</div>
+                      </div>
+                    ) : (
+                      <div className="suggestions-header">
+                        <span>พิมพ์ชื่อเพื่อค้นหาพนักงาน ({employees.length} คน)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Selected employee indicator */}
+              {/*formData.emp_id && !inputError && (
+                <div className="selected-indicator">
+                  <span className="selected-badge">
+                    ✓ เลือก: {formData.emp_name} (รหัสในฐานข้อมูล: {formData.emp_id})
+                  </span>
+                </div>
+              )*/}
             </div>
 
             <div className="form-group">
-              <label>เบอร์โทรศัพท์มือถือ:</label>
+              <label>เบอร์โต๊ะ</label>
               <input
                 type="text"
-                name="phone_number"
-                value={formData.phone_number}
+                className="form-input"
+                name="table_number"
+                value={formData.table_number}
                 onChange={handleChange}
-                placeholder="ป้อนเบอร์โทรศัพท์"
+                placeholder="ป้อนเบอร์โต๊ะ"
               />
-            </div>
-
-            <div className="form-group">
-              <label>ประสงค์เข้าร่วมงาน:</label>
-              <select
-                name="is_attend"
-                value={formData.is_attend}
-                onChange={handleChange}
-                required
-              >
-                {Object.entries(registerEnums.is_attend).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>ประสงค์ขึ้นรถตู้ของสำนักงาน:</label>
-              <select
-                name="take_van_id"
-                value={formData.take_van_id}
-                onChange={handleChange}
-                required
-              >
-                {Object.entries(registerEnums.take_van_id).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>รอบรถตู้สำนักงานเดินทางในช่วงเช้า:</label>
-              <select
-                name="van_round_id"
-                value={formData.van_round_id}
-                onChange={handleChange}
-                disabled={isVanRoundDisabled}
-                required={!isVanRoundDisabled}
-                className={isVanRoundDisabled ? 'disabled-field' : ''}
-              >
-                {Object.entries(registerEnums.van_round_id).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-              {isVanRoundDisabled && (
-                <small className="form-hint">
-                  รอบรถตู้ไม่สามารถเลือกได้เมื่อเลือก "กลับอย่างเดียว" หรือ "ไม่ประสงค์ (เดินทางเอง)"
-                </small>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label>อาหาร:</label>
-              <select
-                name="take_food"
-                value={formData.take_food}
-                onChange={handleChange}
-                required
-              >
-                {Object.entries(registerEnums.take_food).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <br/>

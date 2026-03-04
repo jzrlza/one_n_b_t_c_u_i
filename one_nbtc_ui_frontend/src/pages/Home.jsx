@@ -1,105 +1,444 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
-import { parseExcelToArray } from '../utils/excelParser';
-import loadImage from '../res/loading.gif';
+import bannerImage from '../res/banner.jpg';
 
 const Home = ({ user, onLogout }) => {
   const API_URL = import.meta.env.VITE_API_URL || '';
-  const [employees, setEmployees] = useState([]);
+  const { id } = useParams();
+  const [backendHealth, setBackendHealth] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalEmployees, setTotalEmployees] = useState(0);
-  const [modal, setModal] = useState({ isOpen: false, type: '', message: '', employeeId: null });
-  const [importModal, setImportModal] = useState({ isOpen: false, results: null, mode: 'test' });
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, excelData: null });
-  const [excelLoadModal, setExcelLoadModal] = useState({ isOpen: false });
   const navigate = useNavigate();
+  const searchRef = useRef(null);
 
-  // Add useRef at the top with other useState
-  const fileInputRef = useRef();
+  const isEditMode = !!id;
+  
+  const [formData, setFormData] = useState({
+    emp_name: '',
+    emp_id: '',
+    table_number: ''
+  });
+  
+  // State for hierarchical selection
+  const [divisions, setDivisions] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [selectedDivision, setSelectedDivision] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  
+  // State for search functionality
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [inputError, setInputError] = useState('');
 
-  // Add the handleImportClick function
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
+  const [pageLoading, setPageLoading] = useState(true);
+  const [modal, setModal] = useState({ isOpen: false, type: '', message: '' });
+
+  const showModal = (type, message) => {
+    setModal({ isOpen: true, type, message });
   };
 
-  const fetchEmployees = async (page = 1, searchTerm = '') => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page,
-        limit: 20
-      });
-      
-      if (searchTerm) {
-        params.append('search', searchTerm);
+  const closeModal = () => {
+    setModal({ isOpen: false, type: '', message: '' });
+  };
+
+  useEffect(() => {
+    fetchDivisions();
+    if (isEditMode) {
+      fetchRegisterData();
+    } else {
+      setPageLoading(false);
+    }
+  }, [id]);
+
+  // Filter employees whenever search term or employees list changes
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredEmployees([]);
+    } else {
+      const filtered = employees.filter(emp =>
+        emp.emp_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredEmployees(filtered);
+    }
+    setHighlightedIndex(-1);
+  }, [searchTerm, employees]);
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
       }
-      
-      const response = await axios.get(`${API_URL}/api/employees?${params}`);
-      setEmployees(response.data.employees || []);
-      setTotalPages(response.data.totalPages);
-      setTotalEmployees(response.data.total);
-      setCurrentPage(response.data.page);
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch divisions on component mount
+  const fetchDivisions = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/registers/divisions`);
+      setDivisions(response.data);
+    } catch (error) {
+      console.error('Error fetching divisions:', error);
+      showModal('error', 'ไม่สามารถโหลดข้อมูลสายงานได้');
+    }
+  };
+
+  // Fetch departments based on selected division
+  const fetchDepartments = async (divId) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/registers/departments?div_id=${divId}`);
+      setDepartments(response.data);
+      setSelectedDepartment('');
+      setEmployees([]);
+      setFilteredEmployees([]);
+      setFormData(prev => ({
+        ...prev,
+        emp_name: '',
+        emp_id: ''
+      }));
+      setSearchTerm('');
+      setInputError('');
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      showModal('error', 'ไม่สามารถโหลดข้อมูลสำนักได้');
+    }
+  };
+
+  // Fetch employees based on selected department
+  const fetchEmployees = async (deptId) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/registers/employees?dept_id=${deptId}`);
+      setEmployees(response.data);
+      setFilteredEmployees([]);
+      setFormData(prev => ({
+        ...prev,
+        emp_name: '',
+        emp_id: ''
+      }));
+      setSearchTerm('');
+      setInputError('');
     } catch (error) {
       console.error('Error fetching employees:', error);
+      showModal('error', 'ไม่สามารถโหลดข้อมูลพนักงานได้');
+    }
+  };
+
+  const fetchRegisterData = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/registers/single/${id}`);
+      const register = response.data;
+      
+      setFormData({
+        emp_name: register.emp_name || '',
+        emp_id: register.emp_id || '',
+        table_number: register.table_number || ''
+      });
+
+      // If editing, we need to fetch the employee's division and department
+      if (register.emp_id) {
+        try {
+          const employeeInfo = await axios.get(`${API_URL}/api/registers/employee-info/${register.emp_id}`);
+          const { division_id, department_id } = employeeInfo.data;
+          
+          setSelectedDivision(division_id?.toString() || '');
+          if (division_id) {
+            await fetchDepartments(division_id);
+            setSelectedDepartment(department_id?.toString() || '');
+            if (department_id) {
+              await fetchEmployees(department_id);
+              // Set the search term to the employee name
+              setSearchTerm(register.emp_name);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching employee info:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching register:', error);
+      showModal('error', 'ไม่สามารถโหลดข้อมูลการลงทะเบียนได้');
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
+  const handleDivisionChange = (e) => {
+    const divisionId = e.target.value;
+    setSelectedDivision(divisionId);
+    setSelectedDepartment('');
+    setEmployees([]);
+    setFilteredEmployees([]);
+    setSearchTerm('');
+    setInputError('');
+    
+    if (divisionId) {
+      fetchDepartments(divisionId);
+    } else {
+      setDepartments([]);
+    }
+
+    // Clear employee selection
+    setFormData(prev => ({
+      ...prev,
+      emp_name: '',
+      emp_id: ''
+    }));
+  };
+
+  const handleDepartmentChange = (e) => {
+    const departmentId = e.target.value;
+    setSelectedDepartment(departmentId);
+    setSearchTerm('');
+    setInputError('');
+    
+    if (departmentId) {
+      fetchEmployees(departmentId);
+    } else {
       setEmployees([]);
-      showModal('error', 'ไม่สามารถดึงข้อมูลพนักงานได้');
+      setFilteredEmployees([]);
+    }
+
+    // Clear employee selection
+    setFormData(prev => ({
+      ...prev,
+      emp_name: '',
+      emp_id: ''
+    }));
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowSuggestions(true);
+    setInputError('');
+    
+    // Clear selected employee when typing
+    if (value !== formData.emp_name) {
+      setFormData(prev => ({
+        ...prev,
+        emp_name: value,
+        emp_id: ''
+      }));
+    }
+
+    // When input becomes empty while focused, show all employees
+    if (value === '' && selectedDepartment) {
+      setFilteredEmployees(employees);
+    }
+  };
+
+  // Handle employee selection from suggestions
+  const handleEmployeeSelect = (employee) => {
+    setFormData(prev => ({
+      ...prev,
+      emp_name: employee.emp_name,
+      emp_id: employee.id.toString()
+    }));
+    setSearchTerm(employee.emp_name);
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
+    setInputError('');
+  };
+
+  // Validate if the entered text matches an employee in the list
+  const validateEmployeeInput = () => {
+    // If already have a valid emp_id and the name matches, no need to validate
+    if (formData.emp_id && formData.emp_name === searchTerm) {
+      return true;
+    }
+
+    // Try to find exact match in employees list
+    const exactMatch = employees.find(emp => 
+      emp.emp_name.toLowerCase() === searchTerm.trim().toLowerCase()
+    );
+
+    if (exactMatch) {
+      // Auto-select the exact match
+      setFormData(prev => ({
+        ...prev,
+        emp_name: exactMatch.emp_name,
+        emp_id: exactMatch.id.toString()
+      }));
+      setSearchTerm(exactMatch.emp_name);
+      setInputError('');
+      return true;
+    }
+
+    // Try to find if the search term matches any employee name (case insensitive)
+    const partialMatches = employees.filter(emp =>
+      emp.emp_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (partialMatches.length === 1) {
+      // If only one match, auto-select it
+      const match = partialMatches[0];
+      setFormData(prev => ({
+        ...prev,
+        emp_name: match.emp_name,
+        emp_id: match.id.toString()
+      }));
+      setSearchTerm(match.emp_name);
+      setInputError('');
+      return true;
+    } else if (partialMatches.length > 1) {
+      // Multiple matches - show error to select from dropdown
+      setInputError('พบพนักงานหลายคน กรุณาเลือกจากรายการ');
+      return false;
+    } else {
+      // No matches found
+      setInputError('ไม่พบพนักงานในสำนัก กรุณาตรวจสอบชื่ออีกครั้ง');
+      return false;
+    }
+  };
+
+  // Handle input blur - validate when user leaves the field
+  const handleInputBlur = () => {
+    // Small delay to allow click on suggestion to register first
+    setTimeout(() => {
+      if (!showSuggestions && searchTerm && !formData.emp_id) {
+        validateEmployeeInput();
+      }
+    }, 200);
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || filteredEmployees.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex(prev => 
+          prev < filteredEmployees.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0) {
+          handleEmployeeSelect(filteredEmployees[highlightedIndex]);
+        } else {
+          // If no item highlighted, try to validate the input
+          validateEmployeeInput();
+          setShowSuggestions(false);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setHighlightedIndex(-1);
+        break;
+      case 'Tab':
+        setShowSuggestions(false);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handle input focus
+  const handleInputFocus = () => {
+    if (selectedDepartment && employees.length > 0) {
+      setShowSuggestions(true);
+
+      if (searchTerm === '') {
+        setFilteredEmployees(employees);
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Final validation before submit
+    if (!formData.emp_id) {
+      // Try to validate one more time
+      const isValid = validateEmployeeInput();
+      if (!isValid) {
+        showModal('error', 'กรุณาเลือกพนักงานจากรายการ หรือตรวจสอบชื่อให้ถูกต้อง');
+        return;
+      }
+    }
+
+    // Double-check that we have a valid emp_id after validation
+    if (!formData.emp_id) {
+      showModal('error', 'กรุณาเลือกพนักงานจากรายการ');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const submitData = {
+        emp_id: formData.emp_id,
+        table_number: formData.table_number
+      };
+      
+      if (isEditMode) {
+        await axios.put(`${API_URL}/api/registers/${id}`, submitData);
+        showModal('success', 'อัพเดทการลงทะเบียนเรียบร้อยแล้ว');
+      } else {
+        await axios.post(`${API_URL}/api/registers`, submitData);
+        showModal('success', 'Thank You! ลงทะเบียนสำเร็จ');
+      }
+    } catch (error) {
+      console.error('Error saving registration:', error);
+      showModal('error', 'ไม่สามารถบันทึกการลงทะเบียนได้: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
   };
 
-  const showModal = (type, message, employeeId = null) => {
-    setModal({ isOpen: true, type, message, employeeId });
-  };
-
-  const closeModal = () => {
-    setModal({ isOpen: false, type: '', message: '', employeeId: null });
-  };
-
-  const closeImportModal = () => {
-    setImportModal({ isOpen: false, results: null, mode: 'test' });
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    fetchEmployees(1, search);
-  };
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-    fetchEmployees(newPage, search);
-  };
-
-  const handleEdit = (employeeId) => {
-    navigate(`/employee/${employeeId}`);
-  };
-
-  const handleDelete = (employeeId) => {
-    showModal('confirm', 'คุณแน่ใจหรือไม่ที่จะลบพนักงานคนนี้?', employeeId);
-  };
-
-  const confirmDelete = async () => {
-    if (!modal.employeeId) return;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
     
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const checkBackendHealth = async () => {
     try {
-      await axios.delete(`${API_URL}/api/employees/${modal.employeeId}`);
-      fetchEmployees(currentPage, search);
-      showModal('success', 'ลบพนักงานเรียบร้อยแล้ว');
+      const response = await axios.get(`${API_URL}/api/health`);
+      setBackendHealth(response.data);
     } catch (error) {
-      console.error('Error deleting employee:', error);
-      showModal('error', 'ไม่สามารถลบพนักงานได้');
+      setBackendHealth({ status: 'ERROR', error: error.message });
     }
   };
 
-  const handleAddEmployee = () => {
-    navigate('/employee');
+  const handleModalClose = () => {
+    closeModal();
+    if (modal.type === 'success') {
+      clearFormInput();
+    }
+  };
+
+  const clearFormInput = () => {
+    setFormData({
+      emp_name: '',
+      emp_id: '',
+      table_number: ''
+    });
+
+    setSelectedDivision('');
+    setSelectedDepartment('');
+    setDepartments([]);
+    setEmployees([]);
+    setFilteredEmployees([]);
+    setSearchTerm('');
+    setInputError('');
   };
 
   const handleLogout = () => {
@@ -107,410 +446,182 @@ const Home = ({ user, onLogout }) => {
     navigate('/login');
   };
 
-  const handleImportExcel = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      showModal('error', 'กรุณาเลือกไฟล์ Excel (.xlsx หรือ .xls)');
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      console.log('Frontend: Starting Excel import...');
-      
-      // Parse Excel to array
-      const excelData = await parseExcelToArray(file);
-      
-      // Show confirmation modal instead of alert
-      setConfirmModal({
-        isOpen: true,
-        excelData: excelData
-      });
-      
-    } catch (error) {
-      console.error('Frontend: Import error:', error);
-      showModal('error', 'ไม่สามารถประมวลผลไฟล์ Excel ได้: ' + error.message);
-      setLoading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-    // Add function to handle import confirmation
-  const handleImportConfirm = async (shouldImport) => {
-    setConfirmModal({ isOpen: false, excelData: null });
-    
-    if (!confirmModal.excelData) return;
-    
-    setLoading(true);
-    setExcelLoadModal({ isOpen: true });
-    
-    try {
-      let response;
-      if (shouldImport) {
-        console.log('Frontend: Starting REAL import...');
-        response = await axios.post(`${API_URL}/api/employees/import`, { excelData: confirmModal.excelData });
-      } else {
-        console.log('Frontend: Starting TEST import...');
-        response = await axios.post(`${API_URL}/api/employees/test-import`, { excelData: confirmModal.excelData });
-      }
-      
-      if (response.data.success) {
-        setExcelLoadModal({ isOpen: false });
-        setImportModal({
-          isOpen: true,
-          results: response.data,
-          mode: shouldImport ? 'import' : 'test'
-        });
-        
-        // Refresh employee list if it was a real import
-        if (shouldImport && response.data.savedCount > 0) {
-          fetchEmployees(currentPage, search);
-        }
-        
-        console.log('Frontend: Operation completed successfully');
-      } else {
-        showModal('error', `การดำเนินการล้มเหลว: ${response.data.error}`);
-      }
-    } catch (error) {
-      setExcelLoadModal({ isOpen: false });
-      console.error('Frontend: Import error:', error);
-      showModal('error', 'ไม่สามารถประมวลผลไฟล์ Excel ได้: ' + error.message);
-    } finally {
-      setExcelLoadModal({ isOpen: false });
-      setLoading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   useEffect(() => {
-    fetchEmployees(1);
+    checkBackendHealth();
   }, []);
 
+  // Function to highlight matching text in suggestions
+  const highlightMatch = (text, query) => {
+    if (!query) return text;
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, index) => 
+      part.toLowerCase() === query.toLowerCase() ? 
+        <span key={index} className="highlight">{part}</span> : 
+        part
+    );
+  };
+
+  if (pageLoading) {
+    return <div className="loading">กำลังโหลด...</div>;
+  }
+
   return (
-    <div className="app">
+    <div className="app app-home">
       <Navbar user={user} onLogout={handleLogout} />
-
-      {/* Hidden file input */}
-    <input
-      type="file"
-      ref={fileInputRef}
-      onChange={handleImportExcel}
-      accept=".xlsx,.xls"
-      style={{ display: 'none' }}
-    />
       
-      <main className="app-main">
-        <section className="employees-section">
-          <div className="section-header">
-            <h2>พนักงาน ({totalEmployees})</h2>
-            <button onClick={handleAddEmployee} className="add-btn">
-              เพิ่มพนักงาน
-            </button>
-            <button onClick={handleImportClick} disabled={loading} className="import-btn">
-              {loading ? 'กำลังประมวลผล...' : 'นำเข้า Excel'}
-            </button>
-          </div>
-          
-          <div className="controls">
-            <form onSubmit={handleSearch} className="search-form">
-              <input
-                type="text"
-                placeholder="ค้นหาพนักงานด้วยชื่อ..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="search-input"
-              />
-              <button type="submit" disabled={loading} className="search-btn">
-                ค้นหา
-              </button>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setSearch('');
-                  setCurrentPage(1);
-                  fetchEmployees(1);
-                }}
-                className="clear-btn"
-              >
-                ล้าง
-              </button>
-            </form>
-            
-            <button onClick={() => fetchEmployees(currentPage, search)} disabled={loading} className="refresh-btn">
-              {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
-            </button>
-          </div>
+      <main className="app-main app-home">
+        <section className="health-section">
+          <img className="img-banner" src={bannerImage} 
+            alt={
+              `Register Now | กิจกรรม NBTC Learn and Grow | Uptrend, Level Up, Grow Together | by NBTC Academy`
+            } 
+          />
+        </section>
 
-          <div className="pagination">
-                <button 
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="page-btn"
-                >
-                  ก่อนหน้า
-                </button>
-                
-                <span className="page-info">
-                  หน้า {currentPage} จาก {totalPages}
-                </span>
-                
-                <button 
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="page-btn"
-                >
-                  ถัดไป
-                </button>
-              </div>
+        <section className="home-form">
+          <h2 className="home-form-title">{isEditMode ? 'แก้ไขการลงทะเบียน' : 'ลงทะเบียน'}</h2>
           
-          {employees.length > 0 ? (
-            <>
-              <div className="table-container">
-                <table className="employees-table">
-                  <thead>
-                    <tr>
-                      <th>รหัส</th>
-                      <th>ชื่อ-นามสกุล</th>
-                      <th>ตำแหน่ง</th>
-                      <th>สำนัก</th>
-                      <th>สายงาน</th>
-                      <th>การดำเนินการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map((employee) => (
-                      <tr key={employee.id}>
-                        <td>{employee.id}</td>
-                        <td>{employee.emp_name}</td>
-                        <td>{employee.position_name}</td>
-                        <td>{employee.dept_name}</td>
-                        <td>{employee.div_name}</td>
-                        <td className="actions">
-                          <button 
-                            onClick={() => handleEdit(employee.id)}
-                            className="edit-btn"
+          <form onSubmit={handleSubmit} className="employee-form">
+            {/* Division Selection */}
+            <div className="form-group">
+              <label>สายงาน</label>
+              <select
+                className="select-form-item"
+                value={selectedDivision}
+                onChange={handleDivisionChange}
+                required
+              >
+                <option value="">เลือกสายงาน</option>
+                {divisions.map(division => (
+                  <option key={division.id} value={division.id}>
+                    {division.div_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Department Selection */}
+            <div className="form-group">
+              <label>สำนัก</label>
+              <select
+                className="select-form-item"
+                value={selectedDepartment}
+                onChange={handleDepartmentChange}
+                disabled={!selectedDivision}
+                required
+              >
+                <option value="">เลือกสำนัก</option>
+                {departments.map(department => (
+                  <option key={department.id} value={department.id}>
+                    {department.dept_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Employee Search with Google-like suggestions */}
+            <div className="form-group" ref={searchRef}>
+              <label>ชื่อ-นามสกุล</label>
+              <div className="search-container">
+                <input
+                  type="text"
+                  className={`select-form-item ${inputError ? 'input-error' : ''}`}
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleKeyDown}
+                  placeholder={selectedDepartment ? "พิมพ์ชื่อเพื่อค้นหา..." : "กรุณาเลือกสำนักก่อน"}
+                  disabled={!selectedDepartment}
+                  autoComplete="off"
+                />
+                
+                {/* Error message */}
+                {inputError && (
+                  <div className="input-error-message">
+                    {inputError}
+                  </div>
+                )}
+                
+                {/* Google-like suggestions dropdown */}
+                {showSuggestions && selectedDepartment && (
+                  <div className="suggestions-dropdown">
+                    {filteredEmployees.length > 0 ? (
+                      <ul className="suggestions-list">
+                        {filteredEmployees.map((employee, index) => (
+                          <li
+                            key={employee.id}
+                            className={`suggestion-item ${index === highlightedIndex ? 'highlighted' : ''}`}
+                            onClick={() => handleEmployeeSelect(employee)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
                           >
-                            แก้ไข
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(employee.id)}
-                            className="delete-btn"
-                          >
-                            ลบ
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <div className="employee-name">
+                              {highlightMatch(employee.emp_name, searchTerm)}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : searchTerm ? (
+                      <div className="no-suggestions">
+                        <div className="no-results-icon">🔍</div>
+                        <div>ไม่พบพนักงาน "{searchTerm}"</div>
+                        <div className="no-results-hint">ลองค้นหาด้วยชื่ออื่น</div>
+                      </div>
+                    ) : (
+                      <div className="suggestions-header">
+                        <span>พิมพ์ชื่อเพื่อค้นหาพนักงาน<br/>({employees.length} คน)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               
-              <div className="pagination">
-                <button 
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="page-btn"
-                >
-                  ก่อนหน้า
-                </button>
-                
-                <span className="page-info">
-                  หน้า {currentPage} จาก {totalPages}
-                </span>
-                
-                <button 
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="page-btn"
-                >
-                  ถัดไป
-                </button>
-              </div>
-            </>
-          ) : (
-            <p>ไม่พบพนักงาน</p>
-          )}
+              {/* Selected employee indicator */}
+              {/*formData.emp_id && !inputError && (
+                <div className="selected-indicator">
+                  <span className="selected-badge">
+                    เลือก: {formData.emp_name}
+                  </span>
+                </div>
+              )*/}
+            </div>
+
+            <div className="form-group">
+              <label>เบอร์โต๊ะ</label>
+              <input
+                className="select-form-item"
+                type="text"
+                name="table_number"
+                value={formData.table_number}
+                onChange={handleChange}
+                placeholder="ป้อนเบอร์โต๊ะ"
+              />
+            </div>
+
+            <br/>
+
+            <div className="form-actions">
+              <button type="submit" disabled={loading} 
+              className="submit-btn submit-btn-home">
+                {loading ? 'กำลังบันทึก...' : (isEditMode ? 'อัพเดท' : 'บันทึก')}
+              </button>
+            </div>
+            <br/>
+          </form>
         </section>
+        <br/>
       </main>
 
-      {/* Modal for messages */}
       <Modal 
-        isOpen={modal.isOpen && ['success', 'error'].includes(modal.type)} 
-        onClose={closeModal}
+        isOpen={modal.isOpen} 
+        onClose={handleModalClose}
         title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
       >
         <p>{modal.message}</p>
         <div className="modal-actions">
-          <button onClick={closeModal} className="modal-btn primary">ตกลง</button>
+          <button onClick={handleModalClose} className="modal-btn primary">ปิด</button>
         </div>
-      </Modal>
-
-      {/* Modal for import loading */}
-      <Modal 
-        isOpen={excelLoadModal.isOpen} 
-        title={'Loading...'}
-      >
-      <h1><img src={loadImage} 
-            alt={
-              `กำลังโหลด`
-            } style={{
-              width: '40px',
-              height: '40px',
-              display: 'block',
-              marginLeft: 'auto',
-              marginRight: 'auto'
-            }}
-            /></h1>
-        <p>กำลังประมวลผล...</p>
-      </Modal>
-
-      {/* Modal for confirmation */}
-      <Modal 
-        isOpen={modal.isOpen && modal.type === 'confirm'} 
-        onClose={closeModal}
-        title="ยืนยันการลบ"
-      >
-        <p>{modal.message}</p>
-        <div className="modal-actions">
-          <button onClick={confirmDelete} className="modal-btn danger">ลบ</button>
-          <button onClick={closeModal} className="modal-btn secondary">ยกเลิก</button>
-        </div>
-      </Modal>
-
-      {/* Confirm Import Modal */}
-      <Modal 
-        isOpen={confirmModal.isOpen} 
-        onClose={() => setConfirmModal({ isOpen: false, excelData: null })}
-        title="ยืนยันการนำเข้า"
-      >
-        <div className="confirm-import">
-          <p><strong>คุณต้องการนำเข้าข้อมูลไปยังฐานข้อมูลหรือไม่?</strong></p>
-          <div className="import-options">
-            <div className="option">
-              <h4>✅ นำเข้าสู่ฐานข้อมูล</h4>
-              <p>บันทึกพนักงานลงฐานข้อมูล (ไม่สามารถย้อนกลับได้)</p>
-            </div>
-            <div className="option">
-              <h4>🔍 ทดสอบเท่านั้น</h4>
-              <p>ตรวจสอบความถูกต้องของข้อมูลและแสดงผลลัพธ์โดยไม่บันทึก</p>
-            </div>
-          </div>
-          <div className="modal-actions">
-            <button 
-              onClick={() => handleImportConfirm(true)} 
-              className="modal-btn danger"
-            >
-              นำเข้าสู่ฐานข้อมูล
-            </button>
-            <button 
-              onClick={() => handleImportConfirm(false)} 
-              className="modal-btn secondary"
-            >
-              ทดสอบเท่านั้น
-            </button>
-            <button 
-              onClick={() => setConfirmModal({ isOpen: false, excelData: null })} 
-              className="modal-btn primary"
-            >
-              ยกเลิก
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/*import modal*/}
-      <Modal 
-        isOpen={importModal.isOpen} 
-        onClose={closeImportModal}
-        title={importModal.mode === 'import' ? 'ผลการนำเข้า Excel' : 'ผลการทดสอบ Excel'}
-      >
-        {importModal.results && (
-          <div className="import-results">
-            <div className="import-summary">
-              <p><strong>จำนวนแถวทั้งหมด:</strong> {importModal.results.totalRows}</p>
-              <p className={importModal.mode === 'import' ? 'success-text' : 'info-text'}>
-                <strong>{importModal.mode === 'import' ? 'เพิ่มสำเร็จ:' : 'แถวที่น่าเพิ่ม:'}</strong> {importModal.mode === 'import' ? importModal.results.createdCount : importModal.results.createdCount}
-              </p>
-              <p className={importModal.mode === 'import' ? 'success-text' : 'info-text'}>
-                <strong>{importModal.mode === 'import' ? 'แก้ไขสำเร็จ:' : 'แถวที่น่าแก้ไข:'}</strong> {importModal.mode === 'import' ? importModal.results.updatedCount : importModal.results.updatedCount}
-              </p>
-              <p className="error-text">
-                <strong>ไม่มีการเปลี่ยนแปลง:</strong> {importModal.mode === 'import' ? importModal.results.unchangedCount : importModal.results.unchangedCount}
-              </p>
-              <p className="error-text">
-                <strong>ข้อผิดพลาด:</strong> {importModal.mode === 'import' ? importModal.results.errorCount : importModal.results.errorCount}
-              </p>
-            </div>
-            
-            {importModal.results.errors && importModal.results.errors.length > 0 && (
-              <div className="import-errors">
-                <h4>ข้อผิดพลาด ({importModal.results.errors.length}):</h4>
-                <div className="error-list scroll-box">
-                  {importModal.results.errors.map((error, index) => (
-                    <div key={index} className="error-item">
-                      {error}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {importModal.mode === 'import' && importModal.results.saved && importModal.results.saved.length > 0 && (
-              <div className="import-success">
-                <h4>นำเข้าสำเร็จ ({importModal.results.saved.length + importModal.results.updated.length}):</h4>
-                <div className="success-list scroll-box">
-                  {importModal.results.saved.slice(0, 10).map((item, index) => (
-                    <div key={index} className="success-item">
-                      <strong>แถวที่ {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
-                    </div>
-                  ))}
-                  {importModal.results.saved.length > 10 && (
-                    <div className="more-items">
-                      ... และอีก {importModal.results.saved.length - 10} พนักงาน
-                    </div>
-                  )}
-
-                  {importModal.results.updated.slice(0, 10).map((item, index) => (
-                    <div key={index} className="success-item">
-                      <strong>แถวที่ {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
-                    </div>
-                  ))}
-                  {importModal.results.updated.length > 10 && (
-                    <div className="more-items">
-                      ... และอีก {importModal.results.updated.length - 10} พนักงาน
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {importModal.mode === 'test' && importModal.results.data && importModal.results.data.length > 0 && (
-              <div className="import-preview">
-                <h4>ตัวอย่าง (5 แถวแรก):</h4>
-                <div className="preview-table scroll-box">
-                  {importModal.results.data.slice(0, 5).map((item, index) => (
-                    <div key={index} className="preview-item">
-                      <strong>แถวที่ {item.rowNumber}:</strong> {item.emp_name} - {item.dept_name} - {item.position_name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div className="modal-actions">
-              <button onClick={closeImportModal} className="modal-btn primary">
-                ปิด
-              </button>
-            </div>
-          </div>
-        )}
       </Modal>
     </div>
   );

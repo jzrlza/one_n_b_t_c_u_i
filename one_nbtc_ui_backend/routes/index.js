@@ -9,7 +9,7 @@ router.get('/health', (req, res) => {
 // Main API route
 router.get('/', (req, res) => {
   res.json({ 
-    message: 'one_nbtc_ui API', 
+    message: 'regis API', 
     version: '1.0.0',
     endpoints: {
       users: '/api/users',

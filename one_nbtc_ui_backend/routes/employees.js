@@ -1,19 +1,87 @@
 const express = require('express');
 const { getConnection } = require('../config/database');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const SimpleRotatingLogger = require('../SimpleRotatingLogger');
+
+const JWT_SECRET_STR = process.env.JWT_SECRET;
+
+const fs = require('fs');
+const path = require('path');
+const logDir = process.env.LOG_PATH || path.join(__dirname, 'logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+const verifyJWTToken = (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1].replace(/"/g, '');
+
+  if (!token) {
+    return null;
+  }
+  
+  try {
+    // Verify token - if valid, get user info back!
+    const user = jwt.verify(token, JWT_SECRET_STR);
+    return user;
+  } catch (err) {
+    return null;
+  }
+}
+
+const logger = new SimpleRotatingLogger(logDir, 'backend-employees.js-access.log', {
+    maxSize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5,
+    compress: true,
+    level: 'info'//,
+   // consoleOutput: process.env.NODE_ENV !== 'production'
+});
+
+const logFile = (req, user=null) => {
+    //let date_now = new Date().toISOString();
+    //const logEntry = `${date_now} - ${req.method} ${req.url} - ${req.ip} - ${req.get('User-Agent')}\n`;
+    let user_str = user ? user.username : ''
+    // Write to rotating stream instead of direct append
+    logger.info('API Request', {
+        method: req.method,
+        url: req.url,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        user: user_str
+    });
+}
 
 // GET all employees with position and department names
 router.get('/', async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
+    logFile(req);
+    const { search, page = 1, limit = 20, division_id, dept_id } = req.query;
     const connection = await getConnection();
     
-    let whereClause = 'WHERE e.is_deleted = 0 \n';
+    let whereClause = 'WHERE e.is_deleted = 0';
     let queryParams = [];
     
+    // Build conditions array
+    const conditions = [];
+    
     if (search) {
-      whereClause += `AND e.emp_name LIKE ?`;
+      conditions.push(`e.emp_name LIKE ?`);
       queryParams.push(`%${search}%`);
+    }
+    
+    if (division_id) {
+      conditions.push(`d.div_id = ?`);
+      queryParams.push(division_id);
+    }
+    
+    if (dept_id) {
+      conditions.push(`e.dept_id = ?`);
+      queryParams.push(dept_id);
+    }
+    
+    // Add conditions to WHERE clause if any exist
+    if (conditions.length > 0) {
+      whereClause = `WHERE e.is_deleted = 0 AND ${conditions.join(' AND ')}`;
     }
     
     const offset = (page - 1) * limit;
@@ -36,6 +104,9 @@ router.get('/', async (req, res) => {
       LIMIT ? OFFSET ?
     `;
     
+    //console.log('SQL Query:', employeeQuery);
+    //console.log('Query Params:', [...queryParams, parseInt(limit).toString(), parseInt(offset).toString()]);
+    
     // Add limit and offset to params
     const employeeParams = [...queryParams, parseInt(limit).toString(), parseInt(offset).toString()];
     
@@ -50,6 +121,9 @@ router.get('/', async (req, res) => {
       LEFT JOIN division ON d.div_id = division.id
       ${whereClause}
     `;
+    
+    //console.log('Count Query:', countQuery);
+    //console.log('Count Params:', queryParams);
     
     const [countResult] = await connection.execute(countQuery, queryParams);
     
@@ -70,9 +144,28 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET departments by division
+router.get('/departments/by-division/:divisionId', async (req, res) => {
+  try {
+    logFile(req);
+    const { divisionId } = req.params;
+    const connection = await getConnection();
+    const [rows] = await connection.execute(
+      'SELECT * FROM dept WHERE div_id = ? ORDER BY dept_name',
+      [divisionId]
+    );
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET positions for dropdown
 router.get('/positions', async (req, res) => {
   try {
+    logFile(req);
     const connection = await getConnection();
     const [rows] = await connection.execute('SELECT * FROM position ORDER BY position_name');
     await connection.end();
@@ -86,6 +179,7 @@ router.get('/positions', async (req, res) => {
 // GET departments for dropdown
 router.get('/departments', async (req, res) => {
   try {
+    logFile(req);
     const connection = await getConnection();
     const [rows] = await connection.execute('SELECT * FROM dept ORDER BY dept_name');
     await connection.end();
@@ -98,6 +192,7 @@ router.get('/departments', async (req, res) => {
 
 router.get('/divisions', async (req, res) => {
   try {
+    logFile(req);
     const connection = await getConnection();
     const [rows] = await connection.execute('SELECT * FROM division ORDER BY div_name');
     await connection.end();
@@ -108,8 +203,16 @@ router.get('/divisions', async (req, res) => {
   }
 });
 
+//**PROTECTED**
 // POST create new employee
 router.post('/', async (req, res) => {
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
   try {
     const { emp_name, position_id, dept_id } = req.body;
     const connection = await getConnection();
@@ -127,8 +230,16 @@ router.post('/', async (req, res) => {
   }
 });
 
+//**PROTECTED**
 // PUT update employee
 router.put('/:id', async (req, res) => {
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
   try {
     const { id } = req.params;
     const { emp_name, position_id, dept_id } = req.body;
@@ -150,6 +261,7 @@ router.put('/:id', async (req, res) => {
 // GET single employee for edit
 router.get('/single/:id', async (req, res) => {
   try {
+    logFile(req);
     const { id } = req.params;
     const connection = await getConnection();
     
@@ -171,9 +283,18 @@ router.get('/single/:id', async (req, res) => {
   }
 });
 
+//**PROTECTED**
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+    logFile(req, user);
+
     const connection = await getConnection();
     
     await connection.execute(
@@ -189,9 +310,18 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+//**PROTECTED**
 router.delete('/:id/force', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+    logFile(req, user);
+
     const connection = await getConnection();
     
     await connection.execute(
@@ -233,7 +363,7 @@ const detectColumnIndices = (excelData) => {
     throw new Error('Header row with "ลำดับ" not found in Excel file');
   }
   
-  console.log(`Found header row at index: ${headerRowIndex}`);
+  //console.log(`Found header row at index: ${headerRowIndex}`);
   
   // Find column indices based on header content
   const columnMap = {
@@ -275,7 +405,7 @@ const detectColumnIndices = (excelData) => {
     throw new Error(`Missing required columns in header row: ${missingColumns.join(', ')}`);
   }
   
-  console.log('Detected column indices:', columnMap);
+  //console.log('Detected column indices:', columnMap);
   return {
     headerRowIndex,
     columnMap,
@@ -352,7 +482,7 @@ const parseExcelRow = async (row, rowNumber, divisions, departments, positions, 
       );
       division = { id: result.insertId, div_name: divisionStr };
       divisions.push(division);
-      console.log(`Row ${rowNumber}: Added new division: ${divisionStr}`);
+      //console.log(`Row ${rowNumber}: Added new division: ${divisionStr}`);
     } else {
       return { 
         error: `Row ${rowNumber}: | ไม่พบสายงานชื่อ "${divisionStr}" |` 
@@ -375,7 +505,7 @@ const parseExcelRow = async (row, rowNumber, divisions, departments, positions, 
       );
       department = { id: result.insertId, dept_name: deptStr, div_id: division.id };
       departments.push(department);
-      console.log(`Row ${rowNumber}: Added new department: ${deptStr} in division: ${divisionStr}`);
+      //console.log(`Row ${rowNumber}: Added new department: ${deptStr} in division: ${divisionStr}`);
     } else {
       return { 
         error: `Row ${rowNumber}: | ไม่พบสังกัดชื่อ "${deptStr}" ในสายงาน "${divisionStr}" |` 
@@ -397,7 +527,7 @@ const parseExcelRow = async (row, rowNumber, divisions, departments, positions, 
       );
       position = { id: result.insertId, position_name: positionStr };
       positions.push(position);
-      console.log(`Row ${rowNumber}: Added new position: ${positionStr}`);
+      //console.log(`Row ${rowNumber}: Added new position: ${positionStr}`);
     } else {
       return { 
         error: `Row ${rowNumber}: | ไม่พบตำแหน่งชื่อ "${positionStr}" |` 
@@ -453,7 +583,7 @@ const processExcelImport = async (excelData, connection, testing = false) => {
     // Get data rows
     const dataRows = excelData.slice(dataStartIndex);
     
-    console.log(`Processing ${dataRows.length} rows, Testing: ${testing}`);
+    //console.log(`Processing ${dataRows.length} rows, Testing: ${testing}`);
     
     for (let index = 0; index < dataRows.length; index++) {
       const row = dataRows[index];
@@ -505,7 +635,7 @@ const processExcelImport = async (excelData, connection, testing = false) => {
               };
               
               updatedEmployees.push(updatedEmployee);
-              console.log(`Row ${rowNumber}: Employee "${empName}" updated`);
+              //console.log(`Row ${rowNumber}: Employee "${empName}" updated`);
             } else {
               // In testing mode, just show what would be updated
               const testUpdate = {
@@ -527,7 +657,7 @@ const processExcelImport = async (excelData, connection, testing = false) => {
               message: `Employee "${empName}" already exists with same details`
             };
             savedEmployees.push(unchangedEmployee);
-            console.log(`Row ${rowNumber}: Employee "${empName}" already exists, no changes needed`);
+            //console.log(`Row ${rowNumber}: Employee "${empName}" already exists, no changes needed`);
           }
           
         } else {
@@ -545,7 +675,7 @@ const processExcelImport = async (excelData, connection, testing = false) => {
             };
             
             savedEmployees.push(savedEmployee);
-            console.log(`Row ${rowNumber}: New employee "${empName}" created`);
+            //console.log(`Row ${rowNumber}: New employee "${empName}" created`);
           } else {
             // In testing mode, return validation result
             const testEmployee = {
@@ -591,8 +721,16 @@ const processExcelImport = async (excelData, connection, testing = false) => {
 
 // ==================== EXCEL IMPORT ROUTES ====================
 
+//**PROTECTED**
 // POST test Excel import (with auto-add simulation)
 router.post('/test-import', async (req, res) => {
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
   console.log('=== EXCEL IMPORT TEST START ===');
   
   const connection = await getConnection();
@@ -633,9 +771,17 @@ router.post('/test-import', async (req, res) => {
   }
 });
 
+//**PROTECTED**
 // POST real Excel import (save to database with auto-add)
 router.post('/import', async (req, res) => {
-  console.log('=== EXCEL IMPORT START (SAVING TO DATABASE WITH AUTO-ADD) ===');
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
+
+  //console.log('=== EXCEL IMPORT START (SAVING TO DATABASE WITH AUTO-ADD) ===');
   
   const connection = await getConnection();
   
@@ -677,15 +823,23 @@ router.post('/import', async (req, res) => {
   }
 });
 
+//**PROTECTED**
 // POST batch import with auto-add and updates
 router.post('/import-batch', async (req, res) => {
   const { excelData, batchSize = 100 } = req.body;
+
+  const user = verifyJWTToken(req,res);
+    if(!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+  logFile(req, user);
   
   if (!excelData || !Array.isArray(excelData)) {
     return res.status(400).json({ success: false, error: 'Invalid Excel data format' });
   }
   
-  console.log(`Starting batch import with batch size: ${batchSize}`);
+  //console.log(`Starting batch import with batch size: ${batchSize}`);
   
   const connection = await getConnection();
   const results = { 
@@ -717,7 +871,7 @@ router.post('/import-batch', async (req, res) => {
       const end = start + batchSize;
       const batchRows = allDataRows.slice(start, end);
       
-      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (rows ${start + 1} to ${Math.min(end, allDataRows.length)})`);
+      //console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (rows ${start + 1} to ${Math.min(end, allDataRows.length)})`);
       
       const batchSaved = [];
       const batchUpdated = [];
@@ -849,6 +1003,267 @@ router.post('/import-batch', async (req, res) => {
     });
   } finally {
     await connection.end();
+  }
+});
+
+//**PROTECTED**
+// POST detect missing employees between database and Excel data
+router.post('/detect-missing', async (req, res) => {
+  const user = verifyJWTToken(req, res);
+  if (!user) {
+    logFile(req);
+    return res.status(403).json({ error: "Unauthorized Access" });
+  }
+  logFile(req, user);
+
+  try {
+    const { excelData } = req.body;
+    
+    if (!excelData || !Array.isArray(excelData)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Excel data is required for missing detection' 
+      });
+    }
+
+    const connection = await getConnection();
+
+    // Get all current employees from database
+    const getAllEmployeesQuery = `
+      SELECT 
+        e.id,
+        e.emp_name,
+        p.position_name,
+        d.dept_name,
+        division.div_name,
+        e.is_register
+      FROM employee e
+      LEFT JOIN position p ON e.position_id = p.id
+      LEFT JOIN dept d ON e.dept_id = d.id
+      LEFT JOIN division ON d.div_id = division.id
+      WHERE e.is_deleted = 0
+      ORDER BY e.emp_name
+    `;
+
+    const [allEmployees] = await connection.execute(getAllEmployeesQuery);
+    
+    if (allEmployees.length === 0) {
+      await connection.end();
+      return res.json({ 
+        success: true, 
+        totalInDatabase: 0,
+        totalInExcel: 0,
+        missingCount: 0,
+        missingEmployeeIds: [],
+        missingEmployees: [],
+        message: 'No employees in database to compare'
+      });
+    }
+
+    // Extract employee names from Excel data
+    const excelEmployeeNames = new Set();
+    const { headerRowIndex, columnMap, dataStartIndex } = detectColumnIndices(excelData);
+    const dataRows = excelData.slice(dataStartIndex);
+    
+    dataRows.forEach(row => {
+      const empNameIndex = columnMap?.empNameIndex ?? -1;
+      if (empNameIndex >= 0 && row[empNameIndex]) {
+        const empName = getCellValue(row[empNameIndex]);
+        if (empName) {
+          excelEmployeeNames.add(empName);
+        }
+      }
+    });
+
+    // Find employees in database but not in Excel
+    const missingFromExcel = allEmployees.filter(employee => 
+      !excelEmployeeNames.has(employee.emp_name)
+    );
+
+    // Also find employees in Excel but not in database (new additions)
+    const databaseEmployeeNames = new Set(allEmployees.map(emp => emp.emp_name));
+    const newInExcel = [];
+    
+    excelEmployeeNames.forEach(empName => {
+      if (!databaseEmployeeNames.has(empName)) {
+        newInExcel.push({
+          emp_name: empName,
+          status: 'New in Excel (not in database)'
+        });
+      }
+    });
+
+    // Store IDs of missing employees
+    const missingEmployeeIds = missingFromExcel.map(emp => emp.id);
+
+    await connection.end();
+
+    res.json({
+      success: true,
+      totalInDatabase: allEmployees.length,
+      totalInExcel: excelEmployeeNames.size,
+      missingCount: missingFromExcel.length,
+      newInExcelCount: newInExcel.length,
+      missingEmployeeIds: missingEmployeeIds,
+      missingEmployees: missingFromExcel.map(emp => ({
+        id: emp.id,
+        emp_name: emp.emp_name,
+        position_name: emp.position_name,
+        dept_name: emp.dept_name,
+        div_name: emp.div_name,
+        is_register: emp.is_register,
+        status: 'Missing from Excel'
+      })),
+      newInExcel: newInExcel,
+      comparisonSummary: {
+        onlyInDatabase: missingFromExcel.length,
+        onlyInExcel: newInExcel.length,
+        inBoth: allEmployees.length - missingFromExcel.length
+      },
+      message: `Comparison completed. ${missingFromExcel.length} employees in database are missing from Excel, ${newInExcel.length} employees in Excel are not in database.`
+    });
+
+  } catch (error) {
+    console.log('Missing detection error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+//**PROTECTED**
+// DELETE mass delete employees by IDs
+router.patch('/excel-mass-delete', async (req, res) => {
+  try {
+    const user = verifyJWTToken(req, res);
+    if (!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+    logFile(req, user);
+
+    // Get employee IDs from request body
+    const { employeeIds } = req.body;
+
+    // Validate input
+    if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee IDs array is required'
+      });
+    }
+
+    const connection = await getConnection();
+    
+    // Convert all IDs to numbers
+    const ids = employeeIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    
+    if (ids.length === 0) {
+      await connection.end();
+      return res.status(400).json({
+        success: false,
+        error: 'No valid employee IDs provided'
+      });
+    }
+
+    // First, get the employees that will be deleted (for response)
+    const placeholders = ids.map(() => '?').join(',');
+    const [employeesToDelete] = await connection.execute(
+      `SELECT id, emp_name FROM employee 
+       WHERE id IN (${placeholders}) AND is_deleted = 0`,
+      ids
+    );
+
+    if (employeesToDelete.length === 0) {
+      await connection.end();
+      return res.json({
+        success: true,
+        message: 'No active employees found with the provided IDs',
+        deletedCount: 0,
+        deletedEmployees: []
+      });
+    }
+
+    // Get just the IDs of employees that exist
+    const foundIds = employeesToDelete.map(emp => emp.id);
+
+    // Perform soft delete (mark as deleted)
+    const [result] = await connection.execute(
+      `UPDATE employee 
+       SET is_deleted = 1 
+       WHERE id IN (${foundIds.map(() => '?').join(',')})`,
+      foundIds
+    );
+
+    await connection.end();
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${result.affectedRows} employees`,
+      deletedCount: result.affectedRows,
+      deletedEmployees: employeesToDelete,
+      requestedCount: ids.length,
+      notFoundCount: ids.length - foundIds.length
+    });
+
+  } catch (error) {
+    console.log('Mass delete error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete employees',
+      details: error.message
+    });
+  }
+});
+
+//**PROTECTED**  
+// POST preview which employees would be deleted (optional)
+router.post('/excel-mass-delete/preview', async (req, res) => {
+  try {
+    const user = verifyJWTToken(req, res);
+    if (!user) {
+      logFile(req);
+      return res.status(403).json({ error: "Unauthorized Access" });
+    }
+    logFile(req, user);
+
+    const { employeeIds } = req.body;
+
+    if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee IDs array is required'
+      });
+    }
+
+    const connection = await getConnection();
+    
+    const ids = employeeIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    const placeholders = ids.map(() => '?').join(',');
+    
+    const [employees] = await connection.execute(
+      `SELECT id, emp_name, position_id, dept_id, is_register 
+       FROM employee 
+       WHERE id IN (${placeholders}) AND is_deleted = 0`,
+      ids
+    );
+
+    await connection.end();
+
+    res.json({
+      success: true,
+      totalFound: employees.length,
+      employees: employees,
+      missingIds: ids.filter(id => !employees.map(e => e.id).includes(id))
+    });
+
+  } catch (error) {
+    console.log('Preview error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to preview delete'
+    });
   }
 });
 

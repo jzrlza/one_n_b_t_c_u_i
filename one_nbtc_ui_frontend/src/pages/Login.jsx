@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Modal from '../components/Modal';
 
 const Login = ({ onLogin }) => {
   const API_URL = import.meta.env.VITE_API_URL || '';
@@ -9,11 +10,21 @@ const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [userAD, setUserAD] = useState(null);
   const [code, setCode] = useState('');
   const [qrCode, setQrCode] = useState('');
   const [secret, setSecret] = useState('');
   const [showSetup2FA, setShowSetup2FA] = useState(false);
+  const [modal, setModal] = useState({ isOpen: false, type: '', message: '' });
   const navigate = useNavigate();
+
+  const showModal = (type, message) => {
+    setModal({ isOpen: true, type, message });
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: '', message: '' });
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -27,13 +38,14 @@ const Login = ({ onLogin }) => {
 
       if (response.data.requires2FA) {
         setRequires2FA(true);
-        setUserId(response.data.userId);
+        setUserId(response.data.userId || null);
+        setUserAD(response.data.userAD || null);
       } else {
-        onLogin(response.data.user);
+        onLogin(response.data.user, response.data.token);
         navigate('/');
       }
     } catch (error) {
-      alert('เข้าสู่ระบบล้มเหลว: ' + (error.response?.data?.error || error.message));
+      showModal('error', 'Login failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -46,13 +58,15 @@ const Login = ({ onLogin }) => {
     try {
       const response = await axios.post(`${API_URL}/api/auth/verify-2fa`, {
         userId,
+        username,
+        userAD,
         code
       });
       
-      onLogin(response.data.user);
+      onLogin(response.data.user, response.data.token);
       navigate('/');
     } catch (error) {
-      alert('การยืนยันสองขั้นตอนล้มเหลว: ' + (error.response?.data?.error || error.message));
+      showModal('error','2FA verification failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -62,14 +76,14 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/api/auth/setup-2fa`, {
-        userId
+        userId, username
       });
       
       setQrCode(response.data.qrCode);
       setSecret(response.data.secret);
       setShowSetup2FA(true);
     } catch (error) {
-      alert('การตั้งค่าสองขั้นตอนล้มเหลว: ' + (error.response?.data?.error || error.message));
+      showModal('error','2FA setup failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -77,121 +91,163 @@ const Login = ({ onLogin }) => {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(secret);
-    alert('คัดลอกรหัสลับไว้แล้ว!');
+    showModal('success', 'Secret key copied to clipboard!');
   };
 
-  // 2FA Setup Screen
-  if (showSetup2FA) {
-    return (
-      <div className="login-container">
-        <h2>ตั้งค่าการยืนยันตัวตนสองขั้นตอน</h2>
-        <div className="setup-2fa">
-          <p>สแกน QR Code นี้ด้วยแอปยืนยันตัวตนของคุณ:</p>
-          
-          {qrCode && (
-            <div className="qr-code-container">
-              <img src={qrCode} alt="QR Code" className="qr-code" />
-            </div>
-          )}
-          
-          <div className="secret-container">
-            <p>หรือป้อนรหัสลับนี้ด้วยตนเอง:</p>
-            <div className="secret-display">
-              <code>{secret}</code>
-              <button 
-                type="button" 
-                onClick={copyToClipboard}
-                className="copy-btn"
-              >
-                คัดลอก
-              </button>
-            </div>
-          </div>
-          
-          <p className="instruction">
-            หลังจากตั้งค่าแล้ว กรุณาป้อนรหัส 6 หลักจากแอปยืนยันตัวตนของคุณ:
-          </p>
-          
-          <form onSubmit={verify2FA}>
-            <input
-              type="text"
-              placeholder="ป้อนรหัส 6 หลัก"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-              maxLength={6}
-            />
-            <button type="submit" disabled={loading}>
-              {loading ? 'กำลังยืนยัน...' : 'ยืนยันและตั้งค่าเสร็จสิ้น'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+  const handleModalClose = () => {
+    closeModal();
+  };
 
-  // 2FA Verification Screen
-  if (requires2FA) {
-    return (
-      <div className="login-container">
-        <h2>การยืนยันตัวตนสองขั้นตอน</h2>
+  // หน้าตั้งค่า 2FA
+if (showSetup2FA) {
+  return (
+    <div className="login-container">
+      <h2>ตั้งค่าการยืนยันสองขั้นตอน</h2>
+      <div className="setup-2fa">
+        <p>สแกน QR Code นี้ด้วยแอปยืนยันตัวตนของคุณ:</p>
         
-        <div className="auth-options">
-          <p>ป้อนรหัส 6 หลักจากแอปยืนยันตัวตนของคุณ:</p>
-          
-          <form onSubmit={verify2FA}>
-            <input
-              type="text"
-              placeholder="ป้อนรหัส 6 หลัก"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-              maxLength={6}
-            />
-            <button type="submit" disabled={loading}>
-              {loading ? 'กำลังยืนยัน...' : 'ยืนยัน'}
-            </button>
-          </form>
-          
-          <div className="setup-prompt">
-            <p>ยังไม่ได้ตั้งค่าการยืนยันสองขั้นตอน?</p>
+        {qrCode && (
+          <div className="qr-code-container">
+            <img src={qrCode} alt="QR Code" className="qr-code" />
+          </div>
+        )}
+        
+        <div className="secret-container">
+          <p>หรือป้อนคีย์ลับนี้ด้วยตนเอง:</p>
+          <div className="secret-display">
+            <code>{secret}</code>
             <button 
               type="button" 
-              onClick={setup2FA}
-              disabled={loading}
-              className="setup-btn"
+              onClick={copyToClipboard}
+              className="copy-btn"
             >
-              ตั้งค่าการยืนยันสองขั้นตอนตอนนี้
+              คัดลอก
             </button>
           </div>
         </div>
+        
+        <p className="instruction">
+          หลังจากตั้งค่าแล้ว กรุณาป้อนรหัส 6 หลักจากแอปยืนยันตัวตน:
+        </p>
+        
+        <form onSubmit={verify2FA}>
+          <input
+            className="login-input"
+            type="password"
+            placeholder="ป้อนรหัส 6 หลัก"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+            maxLength={6}
+          />
+          <button className="login-btn" type="submit" disabled={loading}>
+            {loading ? 'กำลังตรวจสอบ...' : 'ยืนยันและตั้งค่าให้เสร็จสิ้น'}
+          </button>
+        </form>
       </div>
-    );
-  }
+
+      <Modal 
+        isOpen={modal.isOpen} 
+        onClose={handleModalClose}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
+      >
+        <p>{modal.message}</p>
+        <div className="modal-actions">
+          <button onClick={handleModalClose} className="modal-btn primary">ปิด</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// หน้าตรวจสอบ 2FA
+if (requires2FA) {
+  return (
+    <div className="login-container">
+      <h2>การยืนยันสองขั้นตอน</h2>
+      
+      <div className="auth-options">
+        <p>ป้อนรหัส 6 หลักจากแอปยืนยันตัวตน</p>
+        <br/>
+        
+        <form onSubmit={verify2FA}>
+          <input
+            className="login-input"
+            type="password"
+            placeholder="ป้อนรหัส 6 หลัก"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+            maxLength={6}
+          />
+          <button className="login-btn" type="submit" disabled={loading}>
+            {loading ? 'กำลังตรวจสอบ...' : 'ยืนยัน'}
+          </button>
+        </form>
+        
+        <div className="setup-prompt">
+          <p>ยังไม่ได้ตั้งค่า 2FA?</p>
+          <button 
+            type="button" 
+            onClick={setup2FA}
+            disabled={loading}
+            className="setup-btn"
+          >
+            ตั้งค่า 2FA ทันที
+          </button>
+        </div>
+      </div>
+
+      <Modal 
+        isOpen={modal.isOpen} 
+        onClose={handleModalClose}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
+      >
+        <p>{modal.message}</p>
+        <div className="modal-actions">
+          <button onClick={handleModalClose} className="modal-btn primary">ปิด</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
 
   // Initial Login Screen
   return (
     <div className="login-container">
-      <h2>เข้าสู่ระบบ ONE NBTC</h2>
+      <h2>ลงชื่อเข้าใช้งานสำหรับผู้ดูแลระบบ</h2>
       <form onSubmit={handleLogin}>
         <input
+          className="login-input"
           type="text"
-          placeholder="ชื่อผู้ใช้"
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
         />
         <input
+          className="login-input"
           type="password"
-          placeholder="รหัสผ่าน"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit" disabled={loading}>
-          {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+        <button className="login-btn" type="submit" disabled={loading}>
+          {loading ? 'กำลังดำเนินการ...' : 'ลงชื่อเข้าใช้'}
         </button>
       </form>
+
+      <Modal 
+        isOpen={modal.isOpen} 
+        onClose={handleModalClose}
+        title={modal.type === 'success' ? 'สำเร็จ' : 'ข้อผิดพลาด'}
+      >
+        <p>{modal.message}</p>
+        <div className="modal-actions">
+          <button onClick={handleModalClose} className="modal-btn primary">ปิด</button>
+        </div>
+      </Modal>
     </div>
   );
 };

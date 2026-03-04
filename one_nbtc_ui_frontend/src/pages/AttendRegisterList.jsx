@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import Navbar from '../components/Navbar';
+import NavbarAdmin from '../components/NavbarAdmin';
 import Modal from '../components/Modal';
 import { getEnumValue } from '../utils/enum_config';
 import { formatDateTime } from '../utils/datetime_display_config';
@@ -11,6 +11,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
   const API_URL = import.meta.env.VITE_API_URL || '';
   const [registers, setRegisters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -18,13 +19,17 @@ const AttendRegisterList = ({ user, onLogout }) => {
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '', registerId: null });
   const navigate = useNavigate();
 
-  const fetchRegisters = async (page = 1) => {
+  const fetchRegisters = async (page = 1, searchTerm = '') => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: page,
         limit: 10
       });
+
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
       
       const response = await axios.get(`${API_URL}/api/registers?${params}`);
       setRegisters(response.data.registers || []);
@@ -48,6 +53,12 @@ const AttendRegisterList = ({ user, onLogout }) => {
     setModal({ isOpen: false, type: '', message: '', registerId: null });
   };
 
+  const handleSearch = (search) => {
+    setSearch(search);
+    setCurrentPage(1);
+    fetchRegisters(1, search);
+  };
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     fetchRegisters(newPage);
@@ -58,7 +69,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
   };
 
   const handleAddRegister = () => {
-    navigate(`/attendance/edit`);
+    navigate('/attendance/edit');
   };
 
   const handleDelete = (registerId) => {
@@ -69,12 +80,19 @@ const AttendRegisterList = ({ user, onLogout }) => {
     if (!modal.registerId) return;
     
     try {
-      await axios.delete(`${API_URL}/api/registers/${modal.registerId}`);
+      await axios.delete(`${API_URL}/api/registers/${modal.registerId}`, {
+        headers: {
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Send token like a password
+        }
+      });
       fetchRegisters(currentPage);
       showModal('success', 'ลบการลงทะเบียนเรียบร้อยแล้ว');
     } catch (error) {
       console.error('Error deleting register:', error);
       showModal('error', 'ไม่สามารถลบการลงทะเบียนได้');
+      if (error.response?.status == 403) {
+        handleLogout();
+      }
     }
   };
 
@@ -86,7 +104,11 @@ const AttendRegisterList = ({ user, onLogout }) => {
   const handleExportExcel = async () => {
     setExportLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/api/registers/export-data`);
+      const response = await axios.get(`${API_URL}/api/registers/export-data`, {
+        headers: {
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Send token like a password
+        }
+      });
       
       if (response.data.success) {
         exportToExcel(response.data.registers, response.data.unregisteredEmployees);
@@ -97,6 +119,9 @@ const AttendRegisterList = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Export error:', error);
       showModal('error', 'ไม่สามารถส่งออกไฟล์ Excel ได้: ' + error.message);
+      if (error.response?.status == 403) {
+        handleLogout();
+      }
     } finally {
       setExportLoading(false);
     }
@@ -108,12 +133,13 @@ const AttendRegisterList = ({ user, onLogout }) => {
 
   return (
     <div className="app">
-      <Navbar user={user} onLogout={handleLogout} />
+      <NavbarAdmin user={user} onLogout={handleLogout} />
       
       <main className="app-main">
         <section className="registers-section">
           <div className="section-header">
-            <h2>การลงทะเบียนเข้าร่วมงาน ({totalRegisters})</h2>
+            <h2 className="section-header--header">การลงทะเบียน ({totalRegisters})</h2>
+            <div className="section-header--btn-group">
             <button onClick={() => fetchRegisters(currentPage)} disabled={loading} className="refresh-btn">
             {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
           </button>
@@ -127,21 +153,48 @@ const AttendRegisterList = ({ user, onLogout }) => {
               >
                 {exportLoading ? 'กำลังส่งออก...' : 'ส่งออก Excel'}
               </button>
+              </div>
           </div>
           
-          
+          <div className="filters-container">
+              <div className="filters-row">
+                <form onSubmit={handleSearch} className="search-form">
+                  <input
+                    type="text"
+                    placeholder="ค้นหาการลงทะเบียนด้วย ชื่อ-นามสกุล ของผู้ลงทะเบียน..."
+                    value={search}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="search-input"
+                  />
+                  
+                </form>
+              </div>
+              
+              <div className="active-filters">
+                {(search) && (
+                  <div className="filters-info">
+                    <span className="filter-label">ตัวกรองที่ใช้งานอยู่: </span>
+                    {search && (
+                      <span className="filter-tag">
+                        ค้นหาชื่อ: {search}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
-          <div className="pagination">
+          {registers.length > 0 ? <div className="pagination">
                 <button 
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || currentPage === 0}
                   className="page-btn"
                 >
-                  ก่อนหน้า
+                  {"<"}
                 </button>
                 
                 <span className="page-info">
-                  หน้า {currentPage} จาก {totalPages}
+                  หน้า {currentPage}/{totalPages}
                 </span>
                 
                 <button 
@@ -149,9 +202,9 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   disabled={currentPage === totalPages}
                   className="page-btn"
                 >
-                  ถัดไป
+                  {">"}
                 </button>
-              </div>
+              </div> : ""}
           
           {registers.length > 0 ? (
             <>
@@ -160,12 +213,8 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   <thead>
                     <tr>
                       <th>รหัส</th>
-                      <th>ชื่อ-นามสกุล</th>
-                      <th>เบอร์โทรศัพท์มือถือ</th>
-                      <th>ประสงค์เข้าร่วมงาน</th>
-                      <th>ประสงค์ขึ้นรถตู้ของสำนักงาน</th>
-                      <th>รอบรถตู้สำนักงานเดินทางในช่วงเช้า</th>
-                      <th>อาหาร</th>
+                      <th className="name-in-table">ชื่อ-นามสกุล</th>
+                      <th>เบอร์โต๊ะ</th>
                       <th>วันที่ลงทะเบียน</th>
                       <th>การดำเนินการ</th>
                     </tr>
@@ -174,12 +223,8 @@ const AttendRegisterList = ({ user, onLogout }) => {
                     {registers.map((register) => (
                       <tr key={register.id}>
                         <td>{register.id}</td>
-                        <td>{register.emp_name}</td>
-                        <td>{register.phone_number}</td>
-                        <td>{getEnumValue('is_attend', register.is_attend)}</td>
-                        <td>{getEnumValue('take_van_id', register.take_van_id)}</td>
-                        <td>{getEnumValue('van_round_id', register.van_round_id)}</td>
-                        <td>{getEnumValue('take_food', register.take_food)}</td>
+                        <td className="name-in-table">{register.emp_name}</td>
+                        <td>{register.table_number}</td>
                         <td>{formatDateTime(register.sys_datetime)}</td>
                         <td className="actions">
                           <button 
@@ -204,14 +249,14 @@ const AttendRegisterList = ({ user, onLogout }) => {
               <div className="pagination">
                 <button 
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || currentPage === 0}
                   className="page-btn"
                 >
-                  ก่อนหน้า
+                  {"<"}
                 </button>
                 
                 <span className="page-info">
-                  หน้า {currentPage} จาก {totalPages}
+                  หน้า {currentPage}/{totalPages}
                 </span>
                 
                 <button 
@@ -219,7 +264,7 @@ const AttendRegisterList = ({ user, onLogout }) => {
                   disabled={currentPage === totalPages}
                   className="page-btn"
                 >
-                  ถัดไป
+                  {">"}
                 </button>
               </div>
             </>

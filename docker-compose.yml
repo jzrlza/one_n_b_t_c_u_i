@@ -3,7 +3,7 @@ version: '3.8'
 services:
   database:
     image: mysql:8.0
-    container_name: one_nbtc_ui_mysql
+    container_name: one_nbtc_ui_database_production
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -12,9 +12,9 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./one_nbtc_ui_database_production/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./one_nbtc_ui_production/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - one-nbtc-network
+      - onenbtc-network
 
   backend:
     build: ./one_nbtc_ui_backend
@@ -28,25 +28,66 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
-    depends_on:
-      - database
+      AD_API_URL: ${AD_API_URL}
+      AD_API_KEY: ${AD_API_KEY}
+      NODE_OPTIONS: "--max-old-space-size=300"
+      LOG_PATH: ${LOG_PATH}
     networks:
-      - one-nbtc-network
+      - onenbtc-network
+    mem_limit: 500M  # Add this line
+    restart: always  # Auto-restart if crashes
+    volumes:
+      - ./backend-logs:/app/logs
 
   frontend:
     build: ./one_nbtc_ui_frontend
     ports:
-      - "0.0.0.0:3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       VITE_API_URL: ${VITE_API_URL}
-    depends_on:
-      - backend
     networks:
-      - one-nbtc-network
+      - onenbtc-network
+    mem_limit: 300M  # Add this line
+    restart: always
+
+  #nginx: (no need to, just run in native ubuntu, not here for cripe sake, no wonder yesterday it sucked)
+  #  image: nginx:alpine
+  #  ports:
+  #    - "80:80"
+  #    - "443:443"
+  #  volumes:
+  #    - ./nginx.conf:/etc/nginx/nginx.conf
+  #    - ./ssl:/etc/nginx/ssl
+  #  depends_on:
+  #    - frontend
+  #    - backend
+  #  networks:
+  #    - learngrow-network
+
+  # Database Backup service
+  backup:
+    image: alpine:latest
+    container_name: one_nbtc_ui_backup
+    restart: unless-stopped
+    volumes:
+      - mysql_data:/var/lib/mysql:ro
+      - ./backups:/backups
+      - ./backup-script.sh:/backup-script.sh:ro
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - MYSQL_HOST=database
+    command: sh /backup-script.sh
+    depends_on:
+      - database
+    networks:
+      - onenbtc-network
 
 volumes:
   mysql_data:
 
 networks:
-  one-nbtc-network:
+  onenbtc-network:
     driver: bridge
+
+#also be sure to change "Bridge" from 16 to other numbers so the vpn can see the docker hosts
