@@ -247,10 +247,10 @@ CREATE TABLE `users`  (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `is_deleted` tinyint(1) DEFAULT 0,
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
 
-#example
-INSERT INTO users (employee_id, is_2fa_enabled, is_deleted) VALUES (1, 1, 0);
+#patient 0
+INSERT INTO users (username, type, employee_id, is_2fa_enabled, is_deleted) VALUES ('one_admin', 0, NULL, 0, 0);
 
 # password = nbtctest
 #INSERT INTO `users` VALUES (1, 'one_admin', '$2a$12$2XXyaujvn6FBac/zLLib0OavSp8yGCtpxbNFcORzvzIm0UKYQq5o.', 1, NULL, 0, NOW(), 0);
