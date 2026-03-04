@@ -235,8 +235,8 @@ CREATE TABLE `register`  (
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users`  (
   `id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(80) NULL DEFAULT NULL,
-  `employee_id` int NULL DEFAULT NULL,
+  `username` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+  `password` varchar(255) NULL DEFAULT NULL,
   `type` int NOT NULL DEFAULT 1,
   `two_factor_secret` varchar(255) NULL DEFAULT NULL,
   `is_2fa_enabled` tinyint(1) DEFAULT 0,
@@ -245,8 +245,5 @@ CREATE TABLE `users`  (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
 
-#example
-INSERT INTO users (employee_id, is_2fa_enabled, is_deleted) VALUES (1, 1, 0);
-
 # password = nbtctest
-#INSERT INTO `users` VALUES (1, 'one_admin', '$2a$12$2XXyaujvn6FBac/zLLib0OavSp8yGCtpxbNFcORzvzIm0UKYQq5o.', 1, NULL, 0, NOW(), 0);
+INSERT INTO `users` VALUES (1, 'one_admin', '$2a$12$2XXyaujvn6FBac/zLLib0OavSp8yGCtpxbNFcORzvzIm0UKYQq5o.', 1, NULL, 0, NOW(), 0);
