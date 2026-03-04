@@ -214,13 +214,13 @@ const AttendRegisterList = ({ user, onLogout }) => {
                     <tr>
                       <th>รหัส</th>
                       <th className="name-in-table">ชื่อ-นามสกุล</th>
-                      <th>เบอร์โทรศัพท์มือถือ</th>
-                      <th>ประสงค์เข้าร่วมงาน</th>
-                      <th>ประสงค์ขึ้นรถตู้ของสำนักงาน</th>
-                      <th>รอบรถตู้สำนักงานเดินทางในช่วงเช้า</th>
-                      <th>อาหาร</th>
-                      <th>วันที่ลงทะเบียน</th>
-                      <th>การดำเนินการ</th>
+                      <th className="name-in-table">เบอร์โทรศัพท์มือถือ</th>
+                      <th className="name-in-table">ประสงค์เข้าร่วมงาน</th>
+                      <th className="name-in-table">ประสงค์ขึ้นรถตู้ของสำนักงาน</th>
+                      <th className="name-in-table">รอบรถตู้สำนักงานเดินทางในช่วงเช้า</th>
+                      <th className="name-in-table">อาหาร</th>
+                      <th className="name-in-table">วันที่ลงทะเบียน</th>
+                      <th className="name-in-table">การดำเนินการ</th>
                     </tr>
                   </thead>
                   <tbody>
