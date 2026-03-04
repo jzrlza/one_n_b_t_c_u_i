@@ -4,6 +4,7 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Modal from '../components/Modal';
 import bannerImage from '../res/banner.jpg';
+import { registerEnums } from '../utils/enum_config';
 
 const Home = ({ user, onLogout }) => {
   const API_URL = import.meta.env.VITE_API_URL || '';
@@ -18,7 +19,11 @@ const Home = ({ user, onLogout }) => {
   const [formData, setFormData] = useState({
     emp_name: '',
     emp_id: '',
-    table_number: ''
+    phone_number: '',
+    is_attend: '1',
+    take_van_id: '1',
+    van_round_id: '1',
+    take_food: '1'
   });
   
   // State for hierarchical selection
@@ -37,6 +42,8 @@ const Home = ({ user, onLogout }) => {
 
   const [pageLoading, setPageLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '' });
+
+  const isVanRoundDisabled = formData.take_van_id === '3' || formData.take_van_id === '4';
 
   const showModal = (type, message) => {
     setModal({ isOpen: true, type, message });
@@ -139,7 +146,11 @@ const Home = ({ user, onLogout }) => {
       setFormData({
         emp_name: register.emp_name || '',
         emp_id: register.emp_id || '',
-        table_number: register.table_number || ''
+        phone_number: register.phone_number || '',
+        is_attend: register.is_attend?.toString() || '1',
+        take_van_id: register.take_van_id?.toString() || '1',
+        van_round_id: register.van_round_id?.toString() || '1',
+        take_food: register.take_food?.toString() || '1'
       });
 
       // If editing, we need to fetch the employee's division and department
@@ -382,7 +393,14 @@ const Home = ({ user, onLogout }) => {
     try {
       const submitData = {
         emp_id: formData.emp_id,
-        table_number: formData.table_number
+        phone_number: formData.phone_number,
+        is_attend: parseInt(formData.is_attend),
+        take_van_id: parseInt(formData.take_van_id),
+        // Only include van_round_id if take_van_id is 1 or 2
+        van_round_id: (formData.take_van_id === '1' || formData.take_van_id === '2') 
+          ? parseInt(formData.van_round_id) 
+          : null,
+        take_food: parseInt(formData.take_food)
       };
       
       if (isEditMode) {
@@ -429,7 +447,11 @@ const Home = ({ user, onLogout }) => {
     setFormData({
       emp_name: '',
       emp_id: '',
-      table_number: ''
+      phone_number: '',
+      is_attend: '1',
+      take_van_id: '1',
+      van_round_id: '1',
+      take_food: '1'
     });
 
     setSelectedDivision('');
@@ -588,15 +610,89 @@ const Home = ({ user, onLogout }) => {
             </div>
 
             <div className="form-group">
-              <label>เบอร์โต๊ะ</label>
+              <label>เบอร์โทรศัพท์มือถือ:</label>
               <input
-                className="select-form-item"
                 type="text"
-                name="table_number"
-                value={formData.table_number}
+                className="select-form-item"
+                name="phone_number"
+                value={formData.phone_number}
                 onChange={handleChange}
-                placeholder="ป้อนเบอร์โต๊ะ"
+                placeholder="ป้อนเบอร์โทรศัพท์"
               />
+            </div>
+
+            <div className="form-group">
+              <label>ประสงค์เข้าร่วมงาน:</label>
+              <select
+                className="select-form-item"
+                name="is_attend"
+                value={formData.is_attend}
+                onChange={handleChange}
+                required
+              >
+                {Object.entries(registerEnums.is_attend).reverse().map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>ประสงค์ขึ้นรถตู้ของสำนักงาน:</label>
+              <select
+                className="select-form-item"
+                name="take_van_id"
+                value={formData.take_van_id}
+                onChange={handleChange}
+                required
+              >
+                {Object.entries(registerEnums.take_van_id).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>รอบรถตู้สำนักงานเดินทางในช่วงเช้า:</label>
+              <select
+                className="select-form-item"
+                name="van_round_id"
+                value={formData.van_round_id}
+                onChange={handleChange}
+                disabled={isVanRoundDisabled}
+                required={!isVanRoundDisabled}
+              >
+                {Object.entries(registerEnums.van_round_id).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+              {isVanRoundDisabled && (
+                <small className="form-hint">
+                  รอบรถตู้ไม่สามารถเลือกได้เมื่อเลือก "กลับอย่างเดียว" หรือ "ไม่ประสงค์ (เดินทางเอง)"
+                </small>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label>อาหาร:</label>
+              <select
+                className="select-form-item"
+                name="take_food"
+                value={formData.take_food}
+                onChange={handleChange}
+                required
+              >
+                {Object.entries(registerEnums.take_food).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <br/>
