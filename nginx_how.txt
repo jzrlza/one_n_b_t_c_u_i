@@ -1,0 +1,31 @@
+Option 3 — WSL2 + Linux NGINX (best for learning internals)
+
+Runs real Linux NGINX without Docker.
+
+Steps
+
+Install WSL2:
+
+wsl --install
+
+
+Install Ubuntu:
+
+wsl
+sudo apt update
+sudo apt install nginx
+
+
+Edit config:
+
+sudo nano /etc/nginx/sites-available/default
+
+
+Start NGINX:
+
+sudo service nginx start
+
+
+Access via:
+
+http://localhost
