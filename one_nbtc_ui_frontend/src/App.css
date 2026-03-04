@@ -532,7 +532,7 @@ button:disabled {
     /* Remove justify-content: center */
     margin: 0; /* Remove any auto margins */
 }
-
+ 
 .nav-tabs {
     display: flex;
     gap: 0.5rem;
