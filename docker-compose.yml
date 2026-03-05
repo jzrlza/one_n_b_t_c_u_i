@@ -12,7 +12,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./one_nbtc_ui_production/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./one_nbtc_ui_database_production/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - onenbtc-network
 
